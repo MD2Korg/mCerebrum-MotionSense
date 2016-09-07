@@ -184,7 +184,7 @@ public class ServiceMotionSense extends Service {
             gyroOffset = correctTimestamp(buffer, lastSampleTimestamp, lastSampleSeqNum)/2;
         }
         if (gyroOffset!=-1) {
-            for (int i = 0; i < buffer.size() - 1; i++)
+            for (int i = 0; i < buffer.size(); i++)
                 insertData(buffer.get(i).timestamp, gyroOffset, buffer.get(i).blData);
             Log.d(TAG,"[MOTION_SENSE] Insert data, size="+(buffer.size()-1));
             lastSampleTimestamp = buffer.get(buffer.size()-1).timestamp;
@@ -214,15 +214,15 @@ public class ServiceMotionSense extends Service {
 
         if (lastSampleTimestamp>0 && endSeqNum > startSeqNum) {
             offset = (endTS - startTS) / (endSeqNum - startSeqNum);
-            for (int i = buffer.size()-1; i >=0 ; i--) {
+            for (int i = 0; i <buffer.size() ; i++) {
                 buffer.get(i).timestamp = endTS - (endSeqNum - buffer.get(i).sequenceNumber) * offset;
             }
         } else {
-            for (int i = buffer.size()-1; i >=0 ; i--) {
-                buffer.get(i).timestamp = startTS + (buffer.size()-1-i) * offset;
+            for (int i = 0; i <buffer.size() ; i++) {
+                buffer.get(i).timestamp = startTS + (i) * offset;
             }
         }
-        Log.d(TAG,"[MOTION_SENSE_SEQ] seq=("+startSeqNum+", "+endSeqNum+"), diff="+(endSeqNum-startSeqNum)+ "; buffSize="+(buffer.size()-1)+"; offset="+offset);
+        Log.d(TAG,"[MOTION_SENSE_SEQ] seq=("+startSeqNum+", "+endSeqNum+"), diff="+(endSeqNum-startSeqNum)+ "; buffSize="+(buffer.size())+"; offset="+offset);
 
         return offset;
     }
