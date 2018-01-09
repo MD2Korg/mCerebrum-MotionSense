@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device;
+package org.md2k.motionsense.device.sensor;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -27,10 +27,8 @@ package org.md2k.motionsense.device;
  */
 
 import org.md2k.datakitapi.source.datasource.DataSourceType;
-import org.md2k.datakitapi.source.platform.PlatformType;
-import org.md2k.motionsense.device.sensor.DeviceNew;
 
-public class MotionSense extends DeviceNew{
+public class MotionSenseHRVPlus extends DeviceNew{
 
     @Override
     public String[] getSensors() {
@@ -44,12 +42,16 @@ public class MotionSense extends DeviceNew{
                 return getAccelerometer(bytes);
             case DataSourceType.SEQUENCE_NUMBER:
                 return getSequenceNumber(bytes);
-
+            case DataSourceType.LED:
+                return getLED();
         }
         return new double[0];
     }
 
-
+    private byte[] data;
+    public byte[] getData() {
+        return data;
+    }
     double[] getSequenceNumber(byte[] data) {
            int seq=byteArrayToIntBE(new byte[]{data[18], data[19]});
         return new double[]{seq};
@@ -61,6 +63,51 @@ public class MotionSense extends DeviceNew{
         sample[2] = convertAccelADCtoSI(byteArrayToIntBE(new byte[]{bytes[4], bytes[5]}));
         return sample;
     }
+    double[] getLED(){
+        double[] sample = new double[3];
+        sample[0] = convertLED1(getData()[12], getData()[13], getData()[14]);
+        sample[1] = convertLED2(getData()[14], getData()[15], getData()[16]);
+        sample[2] = convertLED3(getData()[16], getData()[17], getData()[18]);
+        return sample;
+    }
+    private double convertLED1(byte msb, byte mid, byte lsb) {
+        int lsbRev, msbRev, midRev;
+        int msbInt, lsbInt,midInt;
+        msbInt = (msb & 0x00000000000000ff);
+        midInt = (mid & 0x00000000000000ff);
+        lsbInt = (lsb & 0x00000000000000c0);
+        msbRev = msbInt;
+        lsbRev = lsbInt;
+        midRev=midInt;
+
+        return (msbRev << 10) + (midRev<<2)+lsbRev;
+    }
+
+    private double convertLED2(byte msb, byte mid, byte lsb) {
+        int lsbRev, msbRev, midRev;
+        int msbInt, lsbInt,midInt;
+        msbInt = (msb & 0x000000000000003f);
+        midInt = (mid & 0x00000000000000ff);
+        lsbInt = (lsb & 0x00000000000000f0);
+        msbRev = msbInt;
+        lsbRev = lsbInt;
+        midRev=midInt;
+
+        return (msbRev << 12) + (midRev<<4)+lsbRev;
+    }
+    private double convertLED3(byte msb, byte mid, byte lsb) {
+        int lsbRev, msbRev, midRev;
+        int msbInt, lsbInt,midInt;
+        msbInt = (msb & 0x000000000000000f);
+        midInt = (mid & 0x00000000000000ff);
+        lsbInt = (lsb & 0x00000000000000fc);
+        msbRev = msbInt;
+        lsbRev = lsbInt;
+        midRev=midInt;
+
+        return (msbRev << 14) + (midRev<<6)+lsbRev;
+    }
+
 
     private double convertAccelADCtoSI(double x) {
         return 2.0 * x / 16384;
