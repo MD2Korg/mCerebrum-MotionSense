@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device;
+package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_magnitude;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,46 +26,7 @@ package org.md2k.motionsense.device;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import org.md2k.datakitapi.source.datasource.DataSourceType;
-import org.md2k.datakitapi.source.platform.PlatformType;
-import org.md2k.motionsense.device.sensor.DeviceNew;
+import org.md2k.motionsense.device_new.Characteristic;
 
-public class MotionSense extends DeviceNew{
-
-    @Override
-    public String[] getSensors() {
-        return new String[0];
-    }
-
-    @Override
-    public double[] translate(String sensor, byte[] bytes) {
-        switch(sensor){
-            case DataSourceType.ACCELEROMETER:
-                return getAccelerometer(bytes);
-            case DataSourceType.SEQUENCE_NUMBER:
-                return getSequenceNumber(bytes);
-
-        }
-        return new double[0];
-    }
-
-
-    double[] getSequenceNumber(byte[] data) {
-           int seq=byteArrayToIntBE(new byte[]{data[18], data[19]});
-        return new double[]{seq};
-    }
-    double[] getAccelerometer(byte[] bytes) {
-        double[] sample = new double[3];
-        sample[0] = convertAccelADCtoSI(byteArrayToIntBE(new byte[]{bytes[0], bytes[1]}));
-        sample[1] = convertAccelADCtoSI(byteArrayToIntBE(new byte[]{bytes[2], bytes[3]}));
-        sample[2] = convertAccelADCtoSI(byteArrayToIntBE(new byte[]{bytes[4], bytes[5]}));
-        return sample;
-    }
-
-    private double convertAccelADCtoSI(double x) {
-        return 2.0 * x / 16384;
-    }
-    private int byteArrayToIntBE(byte[] bytes) {
-        return java.nio.ByteBuffer.wrap(bytes).getShort();
-    }
+public class CharacteristicMag extends Characteristic {
 }

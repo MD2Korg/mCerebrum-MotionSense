@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device.sensor;
+package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_acl;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,51 +26,35 @@ package org.md2k.motionsense.device.sensor;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import org.md2k.datakitapi.source.datasource.DataSourceType;
-
-public class MotionSenseHRVPlus extends DeviceNew{
-
-    @Override
-    public String[] getSensors() {
-        return new String[0];
-    }
-
-    @Override
-    public double[] translate(String sensor, byte[] bytes) {
-        switch(sensor){
-            case DataSourceType.ACCELEROMETER:
-                return getAccelerometer(bytes);
-            case DataSourceType.SEQUENCE_NUMBER:
-                return getSequenceNumber(bytes);
-            case DataSourceType.LED:
-                return getLED();
-        }
-        return new double[0];
-    }
-
-    private byte[] data;
-    public byte[] getData() {
-        return data;
-    }
-    double[] getSequenceNumber(byte[] data) {
-           int seq=byteArrayToIntBE(new byte[]{data[18], data[19]});
-        return new double[]{seq};
-    }
-    double[] getAccelerometer(byte[] bytes) {
+class TranslateAcl {
+     static double[] getAccelerometer(byte[] bytes) {
         double[] sample = new double[3];
         sample[0] = convertAccelADCtoSI(byteArrayToIntBE(new byte[]{bytes[0], bytes[1]}));
         sample[1] = convertAccelADCtoSI(byteArrayToIntBE(new byte[]{bytes[2], bytes[3]}));
         sample[2] = convertAccelADCtoSI(byteArrayToIntBE(new byte[]{bytes[4], bytes[5]}));
         return sample;
     }
-    double[] getLED(){
+     static double[] getGyroscope(byte[] bytes) {
         double[] sample = new double[3];
-        sample[0] = convertLED1(getData()[12], getData()[13], getData()[14]);
-        sample[1] = convertLED2(getData()[14], getData()[15], getData()[16]);
-        sample[2] = convertLED3(getData()[16], getData()[17], getData()[18]);
+        sample[0] = convertGyroADCtoSI(byteArrayToIntBE(new byte[]{bytes[6], bytes[7]}));
+        sample[1] = convertGyroADCtoSI(byteArrayToIntBE(new byte[]{bytes[8], bytes[9]}));
+        sample[2] = convertGyroADCtoSI(byteArrayToIntBE(new byte[]{bytes[10], bytes[11]}));
         return sample;
     }
-    private double convertLED1(byte msb, byte mid, byte lsb) {
+
+     static double[] getSequenceNumber(byte[] data) {
+        int seq=byteArrayToIntBE(new byte[]{data[18], data[19]});
+        return new double[]{seq};
+    }
+
+     static double[] getLED(byte[] data){
+        double[] sample = new double[3];
+        sample[0] = convertLED1(data[12], data[13], data[14]);
+        sample[1] = convertLED2(data[14], data[15], data[16]);
+        sample[2] = convertLED3(data[16], data[17], data[18]);
+        return sample;
+    }
+    private static double convertLED1(byte msb, byte mid, byte lsb) {
         int lsbRev, msbRev, midRev;
         int msbInt, lsbInt,midInt;
         msbInt = (msb & 0x00000000000000ff);
@@ -83,7 +67,7 @@ public class MotionSenseHRVPlus extends DeviceNew{
         return (msbRev << 10) + (midRev<<2)+lsbRev;
     }
 
-    private double convertLED2(byte msb, byte mid, byte lsb) {
+    private static double convertLED2(byte msb, byte mid, byte lsb) {
         int lsbRev, msbRev, midRev;
         int msbInt, lsbInt,midInt;
         msbInt = (msb & 0x000000000000003f);
@@ -95,7 +79,7 @@ public class MotionSenseHRVPlus extends DeviceNew{
 
         return (msbRev << 12) + (midRev<<4)+lsbRev;
     }
-    private double convertLED3(byte msb, byte mid, byte lsb) {
+    private static double convertLED3(byte msb, byte mid, byte lsb) {
         int lsbRev, msbRev, midRev;
         int msbInt, lsbInt,midInt;
         msbInt = (msb & 0x000000000000000f);
@@ -107,12 +91,20 @@ public class MotionSenseHRVPlus extends DeviceNew{
 
         return (msbRev << 14) + (midRev<<6)+lsbRev;
     }
-
-
-    private double convertAccelADCtoSI(double x) {
+    private static double convertAccelADCtoSI(double x) {
         return 2.0 * x / 16384;
     }
-    private int byteArrayToIntBE(byte[] bytes) {
+    private static int byteArrayToIntBE(byte[] bytes) {
         return java.nio.ByteBuffer.wrap(bytes).getShort();
+    }
+    private static double convertGyroADCtoSI(double x) {
+        return 500.0 * x / 32768;
+    }
+
+    static double[] getRaw(byte[] bytes) {
+            double[] sample=new double[bytes.length];
+            for(int i=0;i<bytes.length;i++)
+                sample[i]=bytes[i];
+            return sample;
     }
 }
