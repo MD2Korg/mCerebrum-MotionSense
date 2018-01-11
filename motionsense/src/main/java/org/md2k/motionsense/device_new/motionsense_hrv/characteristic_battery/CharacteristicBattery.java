@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_battery;
+package org.md2k.motionsense.device_new.motionsense_hrv.characteristic_battery;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>

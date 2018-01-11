@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_battery;
+package org.md2k.motionsense.device_new.motionsense_hrv.characteristic_battery;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,26 +26,13 @@ package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_batt
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
-import org.md2k.datakitapi.source.datasource.DataSourceType;
-import org.md2k.motionsense.device_new.Characteristic;
-import org.md2k.motionsense.device_new.Data;
+public class TranslateBattery {
+    static double[] getBattery(byte[] bytes) {
+        double[] sample = new double[1];
+        sample[0] = bytes[0];
 
-import java.util.ArrayList;
-
-public class CharacteristicBattery extends Characteristic {
-
-    public CharacteristicBattery() {
-        super("00002A19-0000-1000-8000-00805f9b34fb","CHARACTERISIC_BATTERY", 25.0 );
-        //TODO fix frequency
-
+        return sample;
     }
-    public ArrayList<Data> getData(byte[] bytes) {
-        ArrayList<Data> data = new ArrayList<>();
-        int curSeq = (int) TranslateBattery.getBattery(bytes)[0];
-        DataTypeDoubleArray battery = correctTimeStamp(curSeq, TranslateBattery.getBattery(bytes));
-        data.add(new Data(DataSourceType.BATTERY, battery));
+}
 
-        return data;
-    }
-    }
+

@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_battery;
+package org.md2k.motionsense.device_new.motionsense.characteristic_acl;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -33,19 +33,32 @@ import org.md2k.motionsense.device_new.Data;
 
 import java.util.ArrayList;
 
-public class CharacteristicBattery extends Characteristic {
+public class CharacteristicAcl extends Characteristic {
 
-    public CharacteristicBattery() {
-        super("00002A19-0000-1000-8000-00805f9b34fb","CHARACTERISIC_BATTERY", 25.0 );
-        //TODO fix frequency
-
+    public CharacteristicAcl() {
+        super("da39c921-1d81-48e2-9c68-d0ae4bbd351f", "CHARACTERISIC_ACL", 25.0);
     }
-    public ArrayList<Data> getData(byte[] bytes) {
-        ArrayList<Data> data = new ArrayList<>();
-        int curSeq = (int) TranslateBattery.getBattery(bytes)[0];
-        DataTypeDoubleArray battery = correctTimeStamp(curSeq, TranslateBattery.getBattery(bytes));
-        data.add(new Data(DataSourceType.BATTERY, battery));
+    public ArrayList<Data> getData(byte[] bytes){
+        ArrayList<Data> data=new ArrayList<>();
+        int curSeq = (int) TranslateAcl.getSequenceNumber(bytes)[0];
+        DataTypeDoubleArray acl=correctTimeStamp(curSeq, TranslateAcl.getAccelerometer(bytes));
+        data.add(new Data(DataSourceType.ACCELEROMETER, acl));
+
+        DataTypeDoubleArray gyro=correctTimeStamp(curSeq, TranslateAcl.getGyroscope(bytes));
+        data.add(new Data(DataSourceType.GYROSCOPE, gyro));
+
+        DataTypeDoubleArray gyro2=correctTimeStamp(curSeq, TranslateAcl.getGyroscope2(bytes));
+        data.add(new Data(DataSourceType.GYROSCOPE, gyro2));
+
+        DataTypeDoubleArray seq=correctTimeStamp(curSeq, TranslateAcl.getSequenceNumber(bytes));
+        data.add(new Data(DataSourceType.SEQUENCE_NUMBER, seq));
+
+        DataTypeDoubleArray raw=correctTimeStamp(curSeq, TranslateAcl.getRaw(bytes));
+        data.add(new Data(DataSourceType.RAW, raw));
+
+
 
         return data;
     }
-    }
+
+}

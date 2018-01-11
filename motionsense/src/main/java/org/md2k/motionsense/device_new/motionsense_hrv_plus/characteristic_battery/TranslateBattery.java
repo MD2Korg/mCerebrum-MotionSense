@@ -29,4 +29,12 @@ package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_batt
 import org.md2k.datakitapi.source.datasource.DataSourceType;
 
 public class TranslateBattery {
+    static double[] getBattery(byte[] bytes) {
+        double[] sample = new double[1];
+        sample[0] = bytes[0];
+
+        return sample;
+    }
 }
+
+

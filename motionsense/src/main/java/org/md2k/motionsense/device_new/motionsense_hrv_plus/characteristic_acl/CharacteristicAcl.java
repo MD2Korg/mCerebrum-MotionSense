@@ -50,6 +50,19 @@ public class CharacteristicAcl extends Characteristic {
         DataTypeDoubleArray gyro=correctTimeStamp(curSeq, TranslateAcl.getGyroscope(bytes));
         data.add(new Data(DataSourceType.GYROSCOPE, gyro));
 
+
+        DataTypeDoubleArray led=correctTimeStamp(curSeq, TranslateAcl.getLED(bytes));
+        data.add(new Data(DataSourceType.LED, led));
+
+
+        DataTypeDoubleArray seq=correctTimeStamp(curSeq, TranslateAcl.getSequenceNumber(bytes));
+        data.add(new Data(DataSourceType.SEQUENCE_NUMBER, seq));
+
+        DataTypeDoubleArray raw=correctTimeStamp(curSeq, TranslateAcl.getRaw(bytes));
+        data.add(new Data(DataSourceType.RAW, raw));
+
+
+
         return data;
     }
 
