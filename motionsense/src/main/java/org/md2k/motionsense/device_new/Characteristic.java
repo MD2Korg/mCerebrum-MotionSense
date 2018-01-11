@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_acl;
+package org.md2k.motionsense.device_new;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -27,30 +27,45 @@ package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_acl;
  */
 
 import org.md2k.datakitapi.DataKitAPI;
+import org.md2k.datakitapi.datatype.DataType;
 import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
-import org.md2k.datakitapi.source.datasource.DataSourceType;
-import org.md2k.datakitapi.source.platform.PlatformType;
+import org.md2k.datakitapi.source.METADATA;
+import org.md2k.datakitapi.source.datasource.DataSource;
+import org.md2k.datakitapi.source.datasource.DataSourceBuilder;
+import org.md2k.datakitapi.source.datasource.DataSourceClient;
+import org.md2k.datakitapi.source.platform.Platform;
+import org.md2k.datakitapi.source.platform.PlatformBuilder;
+import org.md2k.datakitapi.time.DateTime;
+import org.md2k.motionsense.MetaData;
 import org.md2k.motionsense.MyApplication;
-import org.md2k.motionsense.device_new.Characteristic;
-import org.md2k.motionsense.device_new.Data;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 
-public class CharacteristicAcl extends Characteristic {
+public abstract class Characteristic {
+    protected long lastTimestamp;
+    protected int lastSequence;
+    private String id;
+    private String title;
+    protected double frequency;
 
-    public CharacteristicAcl() {
-        super("da39c921-1d81-48e2-9c68-d0ae4bbd351f", "CHARACTERISIC_ACL", 25.0);
-    }
-    public ArrayList<Data> getData(byte[] bytes){
-        ArrayList<Data> data=new ArrayList<>();
-        int curSeq = (int) TranslateAcl.getSequenceNumber(bytes)[0];
-        DataTypeDoubleArray acl=correctTimeStamp(curSeq, TranslateAcl.getAccelerometer(bytes));
-        data.add(new Data(DataSourceType.ACCELEROMETER, acl));
-
-        DataTypeDoubleArray gyro=correctTimeStamp(curSeq, TranslateAcl.getGyroscope(bytes));
-        data.add(new Data(DataSourceType.GYROSCOPE, gyro));
-
-        return data;
+    public Characteristic(String id, String title, double frequency) {
+        this.id = id;
+        this.frequency = frequency;
+        this.title=title;
     }
 
+    public String getId() {
+        return id;
+    }
+    public DataTypeDoubleArray correctTimeStamp(int curSequence, double[] data) {
+        long time;
+        long curTime = DateTime.getDateTime();
+        int diff = (curSequence - lastSequence + 1024) % 1024;
+        time = (long) (lastTimestamp + frequency * diff);
+        if (curTime < time || curTime - time < 5000)
+            time = curTime;
+        lastTimestamp = time;
+        lastSequence = curSequence;
+        return new DataTypeDoubleArray(time, data);
+    }
 }

@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_acl;
+package org.md2k.motionsense;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,31 +26,31 @@ package org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_acl;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import org.md2k.datakitapi.DataKitAPI;
-import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
-import org.md2k.datakitapi.source.datasource.DataSourceType;
-import org.md2k.datakitapi.source.platform.PlatformType;
-import org.md2k.motionsense.MyApplication;
-import org.md2k.motionsense.device_new.Characteristic;
-import org.md2k.motionsense.device_new.Data;
+import org.md2k.datakitapi.source.datasource.DataSource;
+import org.md2k.motionsense.configuration.Configuration;
 
 import java.util.ArrayList;
 
-public class CharacteristicAcl extends Characteristic {
-
-    public CharacteristicAcl() {
-        super("da39c921-1d81-48e2-9c68-d0ae4bbd351f", "CHARACTERISIC_ACL", 25.0);
-    }
-    public ArrayList<Data> getData(byte[] bytes){
-        ArrayList<Data> data=new ArrayList<>();
-        int curSeq = (int) TranslateAcl.getSequenceNumber(bytes)[0];
-        DataTypeDoubleArray acl=correctTimeStamp(curSeq, TranslateAcl.getAccelerometer(bytes));
-        data.add(new Data(DataSourceType.ACCELEROMETER, acl));
-
-        DataTypeDoubleArray gyro=correctTimeStamp(curSeq, TranslateAcl.getGyroscope(bytes));
-        data.add(new Data(DataSourceType.GYROSCOPE, gyro));
-
-        return data;
+public class MetaData {
+    public static DataSource getDataSource(String dataSourceType, String dataSourceId, String platformType) {
+        ArrayList<DataSource> metaData=Configuration.readMetaData();
+        for(int i=0;i<metaData.size();i++){
+            if(!metaData.get(i).getType().equals(dataSourceType)) continue;
+            if(!metaData.get(i).getPlatform().getType().equals(platformType)) continue;
+            if(dataSourceId==null && metaData.get(i).getId()==null) return metaData.get(i);
+            if(dataSourceId!=null && metaData.get(i).getId()!=null && dataSourceId.equals(metaData.get(i).getId())) return metaData.get(i);
+        }
+        return null;
     }
 
+    public static ArrayList<DataSource> getDataSources(String type) {
+        ArrayList<DataSource> metaData=Configuration.readMetaData();
+        ArrayList<DataSource> dataSources=new ArrayList<>();
+        for(int i=0;i<metaData.size();i++){
+            if(metaData.get(i).getPlatform().getType().equals(type)){
+                dataSources.add(metaData.get(i));
+            }
+        }
+        return dataSources;
+    }
 }

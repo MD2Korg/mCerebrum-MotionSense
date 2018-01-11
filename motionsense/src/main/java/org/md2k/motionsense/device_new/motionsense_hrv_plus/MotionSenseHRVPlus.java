@@ -37,6 +37,7 @@ import org.md2k.datakitapi.source.platform.PlatformBuilder;
 import org.md2k.motionsense.MetaData;
 import org.md2k.motionsense.MyApplication;
 import org.md2k.motionsense.device_new.Characteristic;
+import org.md2k.motionsense.device_new.Data;
 import org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_acl.CharacteristicAcl;
 import org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_battery.CharacteristicBattery;
 import org.md2k.motionsense.device_new.motionsense_hrv_plus.characteristic_magnitude.CharacteristicMag;
@@ -59,6 +60,9 @@ public class MotionSenseHRVPlus {
         cBat=new CharacteristicBattery();
         cMag=new CharacteristicMag();
         dsc=new HashMap<>();
+    }
+    public void a(){
+        ArrayList<Data> d = cAcl.getData(null);
 
     }
 /*

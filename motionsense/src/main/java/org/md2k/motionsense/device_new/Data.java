@@ -1,4 +1,4 @@
-package org.md2k.motionsense.device.sensor;
+package org.md2k.motionsense.device_new;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,8 +26,22 @@ package org.md2k.motionsense.device.sensor;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-public abstract class DeviceNew {
-    public abstract String[] getSensors();
-    public abstract double[] translate(String sensor, byte[] bytes);
+import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
 
+public class Data {
+    private String sensor;
+    private DataTypeDoubleArray dataType;
+
+    public Data(String sensor, DataTypeDoubleArray dataType) {
+        this.sensor = sensor;
+        this.dataType = dataType;
+    }
+
+    public String getSensor() {
+        return sensor;
+    }
+
+    public DataTypeDoubleArray getDataType() {
+        return dataType;
+    }
 }
