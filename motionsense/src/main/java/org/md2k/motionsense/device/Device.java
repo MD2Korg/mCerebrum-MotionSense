@@ -1,40 +1,26 @@
 package org.md2k.motionsense.device;
 
-import android.content.Intent;
-import android.support.v4.content.LocalBroadcastManager;
+import android.content.Context;
 import android.util.Log;
 
 import com.polidea.rxandroidble.RxBleConnection;
 import com.polidea.rxandroidble.RxBleDevice;
-import com.polidea.rxandroidble.exceptions.BleDisconnectedException;
 
-import org.md2k.datakitapi.datatype.DataType;
-import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
-import org.md2k.datakitapi.datatype.DataTypeInt;
-import org.md2k.datakitapi.exception.DataKitException;
-import org.md2k.datakitapi.source.METADATA;
-import org.md2k.datakitapi.source.datasource.DataSource;
-import org.md2k.datakitapi.source.datasource.DataSourceBuilder;
-import org.md2k.datakitapi.source.platform.Platform;
-import org.md2k.datakitapi.source.platform.PlatformBuilder;
-import org.md2k.datakitapi.source.platform.PlatformType;
-import org.md2k.datakitapi.time.DateTime;
-import org.md2k.motionsense.ActivityMain;
-import org.md2k.motionsense.Constants;
+import org.md2k.motionsense.BLEPair;
+import org.md2k.motionsense.Data;
 import org.md2k.motionsense.MyApplication;
-import org.md2k.motionsense.ServiceMotionSense;
-import org.md2k.motionsense.device.sensor.DataQualityAccelerometer;
-import org.md2k.motionsense.device.sensor.DataQualityLed;
-import org.md2k.motionsense.device.sensor.Sensor;
+import org.md2k.motionsense.ReceiveCallback;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
+import rx.BackpressureOverflow;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
+import rx.functions.Action0;
 import rx.functions.Func1;
+import rx.schedulers.Schedulers;
 
 /**
  * Copyright (c) 2015, The University of Memphis, MD2K Center
@@ -62,340 +48,166 @@ import rx.functions.Func1;
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-public abstract class Device extends AbstractTranslate {
-    private Platform platform;
-    HashMap<String, Sensor> sensors;
-    private Subscription subscriptionDevice;
-    private Subscription subscriptionDataQuality;
-    private Subscription subscriptionDeviceContinuous;
-    private HashMap<String, Integer> hm = new HashMap<>();
-    private long startTimestamp = 0;
-    private long lastReceived = 0;
-    private static final long TIMEOUT_VALUE = 30000;
-    private static final int DELAY = 3000;
-    long t;
-    private Subscription subscriptionStop;
+public abstract class Device {
+    public static final String UUID = "0000180f-0000-1000-8000-00805f9b34fb";
 
-    Device(Platform platform) {
-        super();
-        this.platform = platform;
-        sensors = new HashMap<>();
+    private String deviceId;
+    protected ArrayList<Sensor> sensors;
+    private Subscription subscriptionConnect;
+    private Subscription subscriptionRetryConnect;
+    private boolean isConnected;
+
+    protected Device(String deviceId) {
+        this.deviceId = deviceId;
+        sensors = new ArrayList<>();
+        isConnected = false;
     }
 
-    public void add(DataSource dataSource) {
-        if (sensors.get(Sensor.getKey(dataSource)) != null) return;
-        MetaData metaData = new MetaData();
-        DataSource dd;
-        ArrayList<DataSource> dataSources = metaData.getDataSources(dataSource.getPlatform().getType());
-        for (int i = 0; i < dataSources.size(); i++) {
-            if (dataSource.getPlatform().getMetadata() == null) {
-                Platform platform = new PlatformBuilder(dataSource.getPlatform()).setType(dataSource.getPlatform().getType()).setId(dataSource.getPlatform().getId()).build();
-                dd = new DataSourceBuilder(dataSources.get(i)).setPlatform(platform).build();
+    String getDeviceId() {
+        return deviceId;
+    }
 
-            } else {
-                String deviceId = dataSource.getPlatform().getMetadata().get(METADATA.DEVICE_ID);
-                Platform platform = new PlatformBuilder(dataSource.getPlatform()).setType(dataSource.getPlatform().getType()).setId(dataSource.getPlatform().getId()).setMetadata(METADATA.DEVICE_ID, deviceId).build();
-                dd = new DataSourceBuilder(dataSources.get(i)).setPlatform(platform).build();
+    void add(Sensor sensor) {
+        sensors.add(sensor);
+    }
+
+    protected ArrayList<Sensor> getSensors(Characteristic characteristic, ArrayList<Sensor> sensors) {
+        ArrayList<Sensor> selected = new ArrayList<>();
+        for (Sensor sensor1 : sensors) {
+            if (sensor1.getCharacteristicName().equals(characteristic.getName())) {
+                selected.add(sensor1);
             }
-            Sensor s = Sensor.create(dd);
-            if (s != null)
-                sensors.put(Sensor.getKey(dd), s);
         }
-
-/*
-        Sensor sensor = Sensor.create(dataSource);
-        if (sensor != null)
-            sensors.put(Sensor.getKey(dataSource), sensor);
-        if (dataSource.getPlatform().getType().equalsIgnoreCase(PlatformType.MOTION_SENSE_HRV)) {
-            DataSource d = metaData.getDataSource(DataSourceType.DATA_QUALITY, DataSourceType.LED, PlatformType.MOTION_SENSE_HRV);
-            String deviceId = dataSource.getPlatform().getMetadata().get(METADATA.DEVICE_ID);
-            Platform platform = new PlatformBuilder(dataSource.getPlatform()).setType(dataSource.getPlatform().getType()).setId(dataSource.getPlatform().getId()).setMetadata(METADATA.DEVICE_ID, deviceId).build();
-            DataSource dd = new DataSourceBuilder(d).setPlatform(platform).build();
-            Sensor s = Sensor.create(dataSource);
-            if (s != null)
-                sensors.put(Sensor.getKey(dataSource), s);
-        }
-*/
+        return selected;
     }
 
-    boolean equals(Platform platform) {
+    abstract protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection);
 
-        if (getId() == null && platform.getId() != null) return false;
-        if (getId() != null && platform.getId() == null) return false;
-        if (getId() != null && platform.getId() != null && !getId().equals(platform.getId()))
-            return false;
-
-        if (getType() == null && platform.getType() != null) return false;
-        if (getType() != null && platform.getType() == null) return false;
-        if (getType() != null && platform.getType() != null && !getType().equals(platform.getType()))
-            return false;
-
-        String curDeviceId = getDeviceId();
-        String pDeviceId = null;
-        if (platform.getMetadata() != null && platform.getMetadata().get(METADATA.DEVICE_ID) != null)
-            pDeviceId = platform.getMetadata().get(METADATA.DEVICE_ID);
-
-        if (curDeviceId == null && pDeviceId == null) return true;
-        if (curDeviceId != null && pDeviceId == null) return false;
-        if (curDeviceId == null && pDeviceId != null) return false;
-        if (curDeviceId.equals(pDeviceId)) return true;
-        return false;
-    }
-
-    private void calculateDataQualityAccelerometer() {
-        DataQualityAccelerometer sensor = (DataQualityAccelerometer) sensors.get(Sensor.KEY_DATA_QUALITY_ACCELEROMETER);
-        if (sensor != null) {
-            DataTypeInt dataTypeInt = new DataTypeInt(DateTime.getDateTime(), sensor.getStatus());
-            sensor.insert(dataTypeInt);
-            updateView(Sensor.KEY_DATA_QUALITY_ACCELEROMETER, dataTypeInt);
-        }
-    }
-
-    private void calculateDataQualityLed() {
-        DataQualityLed sensor = (DataQualityLed) sensors.get(Sensor.KEY_DATA_QUALITY_LED);
-        if (sensor != null) {
-            DataTypeInt dataTypeInt = new DataTypeInt(DateTime.getDateTime(), sensor.getStatus());
-            Log.d("data_quality_led", "final result=" + dataTypeInt.getSample());
-            sensor.insert(dataTypeInt);
-            updateView(Sensor.KEY_DATA_QUALITY_LED, dataTypeInt);
-        }
-    }
-
-    void start() {
-        for (Sensor sensor : sensors.values())
-            sensor.register();
-
-        subscriptionDataQuality = Observable.interval(DELAY, DELAY, TimeUnit.MILLISECONDS)
-                .subscribe(new Observer<Long>() {
+    void connect(Context context, ReceiveCallback receiveCallback) {
+        Log.d("abc", "connect start....device=" + deviceId);
+        subscriptionRetryConnect = Observable.just(true)
+                .map(new Func1<Boolean, RxBleDevice>() {
                     @Override
-                    public void onCompleted() {
-
+                    public RxBleDevice call(Boolean aBoolean) {
+                        RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
+                        Log.d("abc", "Device retry: connect(): device=" + device.getMacAddress() + " status=" + device.getConnectionState().toString());
+                        unsubscribeConnect();
+//                if (device.getConnectionState() == RxBleConnection.RxBleConnectionState.DISCONNECTED) {
+                        subscribeConnect(context, receiveCallback);
+//                }
+                        return device;
                     }
-
+                }).flatMap(new Func1<RxBleDevice, Observable<? extends RxBleConnection.RxBleConnectionState>>() {
                     @Override
-                    public void onError(Throwable e) {
-                        LocalBroadcastManager.getInstance(MyApplication.getContext()).sendBroadcast(new Intent(ServiceMotionSense.INTENT_STOP));
-
+                    public Observable<? extends RxBleConnection.RxBleConnectionState> call(RxBleDevice device) {
+                        return device.observeConnectionStateChanges();
                     }
-
+                }).doOnUnsubscribe(this::unsubscribeConnect)
+                .flatMap(new Func1<RxBleConnection.RxBleConnectionState, Observable<RxBleConnection.RxBleConnectionState>>() {
                     @Override
-                    public void onNext(Long aLong) {
-                        calculateDataQualityAccelerometer();
-                        calculateDataQualityLed();
-                    }
-                });
-//        unsubscribeDevice();
-//        subscribeDevice();
-        t = DateTime.getDateTime();
-        subscriptionDeviceContinuous = Observable.interval(0, TIMEOUT_VALUE, TimeUnit.MILLISECONDS).map(new Func1<Long, Boolean>() {
-            @Override
-            public Boolean call(Long aLong) {
-                RxBleDevice device = MyApplication.getRxBleClient().getBleDevice(getDeviceId());
-                if (DateTime.getDateTime() - lastReceived >= TIMEOUT_VALUE || device.getConnectionState()== RxBleConnection.RxBleConnectionState.DISCONNECTED) {
-                    Log.d("abc", "unsubscribe calls due to timeout...disconnect time=" + DateTime.getDateTime()+" device = "+getDeviceId());
-                    unsubscribeDevice(true);
-                    Log.d("abc", "after unsubscribe..device="+getDeviceId());
-                    return false;
-                }
-                else return true;
-            }
-        }).subscribe(new Observer<Boolean>() {
-            @Override
-            public void onCompleted() {
-                Log.d("abc","subscriptionDeviceContinuous=completed");
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                Log.e("abc","subscriptionDeviceContinuous=error="+e.getMessage());
-                LocalBroadcastManager.getInstance(MyApplication.getContext()).sendBroadcast(new Intent(ServiceMotionSense.INTENT_STOP));
-            }
-
-            @Override
-            public void onNext(Boolean aBoolean) {
-                Log.d("abc","subscriptionDeviceContinuous=onNext");
-            }
-        });
-
-    }
-
-    private void subscribeDevice() {
-        RxBleDevice device = MyApplication.getRxBleClient().getBleDevice(getDeviceId());
-        Log.d("abc","subscribe...device="+getDeviceId()+" " + device.getConnectionState().toString());
-        if(subscriptionStop!=null && !subscriptionStop.isUnsubscribed())
-            subscriptionStop.unsubscribe();
-        subscriptionDevice = Observable.just(true).flatMap(new Func1<Boolean, Observable<? extends RxBleConnection>>() {
-            @Override
-            public Observable<? extends RxBleConnection> call(Boolean aBoolean) {
-                return device.establishConnection(false);
-            }
-        }).flatMap(new Func1<RxBleConnection, Observable<? extends Observable<byte[]>>>() {
-            @Override
-            public Observable<? extends Observable<byte[]>> call(RxBleConnection rxBleConnection) {
-                Log.d("abc", "after connected...device="+getDeviceId()+" " + device.getConnectionState().toString()+" timediff=" + (DateTime.getDateTime() - t));
-                return Observable.merge(rxBleConnection.setupNotification(Constants.IMU_SERV_CHAR_UUID), rxBleConnection.setupNotification(Constants.BATTERY_SERV_CHAR_UUID));
-            }
-        }).flatMap(notificationObservable -> notificationObservable).onBackpressureBuffer(64)
-                .retryWhen(new Func1<Observable<? extends Throwable>, Observable<?>>() {
-                    @Override
-                    public Observable<?> call(Observable<? extends Throwable> observable) {
-                        return observable.delay(5, TimeUnit.SECONDS).filter(throwable -> {
-                            Log.e("abc", "error inside backpressure="+throwable.toString());
-                            return throwable instanceof BleDisconnectedException;
-                        });
+                    public Observable<RxBleConnection.RxBleConnectionState> call(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
+                        if (rxBleConnectionState == RxBleConnection.RxBleConnectionState.DISCONNECTED)
+                            return Observable.error(new Throwable("abc"));
+                        else return Observable.just(rxBleConnectionState);
                     }
                 })
-                .subscribe(new Observer<byte[]>() {
+                .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
+                    Log.e("abc", "Device retry: retrywhen(): error=" + throwable.toString());
+                    for (int i = 0; i < throwable.getStackTrace().length; i++)
+                        Log.e("abc", "Device retry: retrywhen(): error[]=" + throwable.getStackTrace()[i]);
+                    unsubscribeConnect();
+                    return Observable.timer(1000, TimeUnit.MILLISECONDS);
+                })).subscribe(new Observer<RxBleConnection.RxBleConnectionState>() {
                     @Override
                     public void onCompleted() {
+                        Log.e("abc", "Device retry: onCompleted()");
+                        unsubscribeConnect();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.e("abc", "Device retry: onError()=" + e.toString());
+                        unsubscribeConnect();
+//                        subscribeConnect(context, receiveCallback);
+                    }
+
+                    @Override
+                    public void onNext(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
+                        Log.d("abc", "Device retry: OnNext() device=" + deviceId + " state change=" + rxBleConnectionState.toString());
+/*
+                        if (rxBleConnectionState == RxBleConnection.RxBleConnectionState.DISCONNECTED) {
+                            unsubscribeConnect();
+                            subscribeConnect(context, receiveCallback);
+                        }
+*/
+                    }
+                });
+    }
+
+    private void subscribeConnect(Context context, ReceiveCallback receiveCallback) {
+        RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
+        Log.d("abc", "device = " + device.getMacAddress() + " connectionstate = " + device.getConnectionState().toString());
+        subscriptionConnect = device.establishConnection(false)
+                .onBackpressureBuffer(1024, null, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
+                .flatMap(rxBleConnection -> {
+                    Log.d("abc", "subscribeConnect() device=" + device.getMacAddress() + " connectionstate=" + device.getConnectionState().toString());
+                    BLEPair.pairDevice(context, device.getBluetoothDevice());
+                    return getCharacteristicsObservable(rxBleConnection);
+                })
+                //               .retry()
+//                .retryWhen(new RetryWithDelay(2000))
+
+/*
+                .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
+                    Log.e("abc", "Device=" + device.getMacAddress() + " error=" + throwable.toString());
+                    for(int i=0;i<throwable.getStackTrace().length;i++)
+                        Log.e("abc", "Device=" + device.getMacAddress() + " error[]=" + throwable.getStackTrace()[i]);
+
+                    return Observable.timer(3000,
+                            TimeUnit.MILLISECONDS);
+//                    return Observable.new RetryWithDelay(3000);
+//                    return Observable.just(null);
+                }))
+
+*/
+                .subscribeOn(Schedulers.newThread())
+                .subscribe(new Observer<Data>() {
+                    @Override
+                    public void onCompleted() {
+                        Log.e("abc", "Device -> onCompleted()");
 
                     }
 
                     @Override
                     public void onError(Throwable e) {
-                        Log.e("abc", "after unsubscribe ... error=" + e.getMessage());
-                        unsubscribeDevice(true);
+                        Log.e("abc", "Device: onError()... e=" + e.toString());
+                        for (int i = 0; i < e.getStackTrace().length; i++)
+                            Log.e("abc", "Device: onError()... e[" + i + "]=" + e.getStackTrace()[i]);
                     }
 
                     @Override
-                    public void onNext(byte[] bytes) {
-//                        Log.d("abc","received len="+bytes.length);
-                        lastReceived = DateTime.getDateTime();
-                        if (bytes.length == 1)
-                            insertBattery(bytes[0]);
-                        else {
-                            if (platform.getType().equals(PlatformType.MOTION_SENSE_HRV))
-                                insertData(lastReceived, 0, new Data(getType(), bytes, DateTime.getDateTime()));
-                            else
-                                insertToQueue(new Data(getType(), bytes, DateTime.getDateTime()));
-                        }
+                    public void onNext(Data data) {
+                        if (receiveCallback != null)
+                            receiveCallback.onReceive(data);
                     }
                 });
-
     }
 
-    private void insertBattery(double value) {
-        DataTypeDoubleArray battery = new DataTypeDoubleArray(DateTime.getDateTime(), new double[]{value});
-        if (sensors.get(Sensor.KEY_BATTERY) != null) {
-            sensors.get(Sensor.KEY_BATTERY).insert(battery);
-            updateView(Sensor.KEY_BATTERY, battery);
-        }
+    void disconnect() {
+        Log.d("abc", "device=" + deviceId + " disconnect() subscriptionRetryConnect=" + subscriptionRetryConnect);
+        if (subscriptionRetryConnect != null && !subscriptionRetryConnect.isUnsubscribed())
+            subscriptionRetryConnect.unsubscribe();
+        subscriptionRetryConnect = null;
     }
 
-    abstract void insertData(long timestamp, long gyroOffset, Data blData);
-
-
-    void stop() {
+    private void unsubscribeConnect() {
+        Log.d("abc", "device=" + deviceId + " unsubscribeConnect() subscriptionConnect=" + subscriptionConnect);
         try {
-            if (subscriptionDeviceContinuous != null && !subscriptionDeviceContinuous.isUnsubscribed())
-                subscriptionDeviceContinuous.unsubscribe();
-        } catch (Exception ignored) {
+            if (subscriptionConnect != null && !subscriptionConnect.isUnsubscribed())
+                subscriptionConnect.unsubscribe();
+            subscriptionConnect = null;
+        } catch (Exception e) {
+            Log.e("abc", "device=" + deviceId + " unsubscribeConnect() error = " + e.toString());
         }
-        try {
-            if (subscriptionDataQuality != null && !subscriptionDataQuality.isUnsubscribed())
-                subscriptionDataQuality.unsubscribe();
-        } catch (Exception ignored) {
-        }
-        Log.d("abc", "unsubscribe is called by stop() device=" + getDeviceId());
-        unsubscribeDevice(false);
-
-        for (Sensor sensor : sensors.values())
-            try {
-                sensor.unregister();
-            } catch (DataKitException e) {
-                e.printStackTrace();
-            }
     }
-
-    public String getId() {
-        return platform.getId();
-    }
-
-    public String getType() {
-        return platform.getType();
-    }
-
-    public String getDeviceId() {
-        if (platform.getMetadata() == null) return null;
-        return platform.getMetadata().get(METADATA.DEVICE_ID);
-    }
-
-    public String getName() {
-        return platform.getMetadata().get(METADATA.NAME);
-    }
-
-    public HashMap<String, Sensor> getSensors() {
-        return sensors;
-    }
-
-    ArrayList<DataSource> getDataSources() {
-        ArrayList<DataSource> dataSources = new ArrayList<>();
-        for (Sensor sensor : sensors.values())
-            dataSources.add(sensor.getDataSource());
-        return dataSources;
-    }
-
-    void updateView(String key, DataType data) {
-        String deviceId = getDeviceId(), platformId = getId();
-        if (startTimestamp == 0) startTimestamp = DateTime.getDateTime();
-        Intent intent = new Intent(ActivityMain.INTENT_NAME);
-        intent.putExtra("operation", "data");
-        String dataSourceUniqueId = key + '_' + platformId;
-        if (!hm.containsKey(dataSourceUniqueId)) {
-            hm.put(dataSourceUniqueId, 0);
-        }
-        hm.put(dataSourceUniqueId, hm.get(dataSourceUniqueId) + 1);
-        intent.putExtra("count", hm.get(dataSourceUniqueId));
-        intent.putExtra("timestamp", DateTime.getDateTime());
-        intent.putExtra("starttimestamp", startTimestamp);
-        intent.putExtra("data", data);
-        intent.putExtra("key", key);
-        intent.putExtra("deviceid", deviceId);
-        intent.putExtra("platformid", platformId);
-        LocalBroadcastManager.getInstance(MyApplication.getContext()).sendBroadcast(intent);
-    }
-
-    private void unsubscribeDevice(boolean restart) {
-        RxBleDevice device = MyApplication.getRxBleClient().getBleDevice(getDeviceId());
-        Log.d("abc", "unsubscribe starts...device="+getDeviceId()+" restart="+restart+" device status="+device.getConnectionState());
-        try {
-            if (subscriptionStop != null && !subscriptionStop.isUnsubscribed())
-                subscriptionStop.unsubscribe();
-        } catch (Exception ignored) {
-            Log.e("abc", "unsubscribe: exception = " + ignored.getMessage()+" device status="+device.getConnectionState());
-        }
-
-        try {
-            if (subscriptionDevice != null && !subscriptionDevice.isUnsubscribed())
-                subscriptionDevice.unsubscribe();
-        } catch (Exception ignored) {
-            Log.e("abc", "unsubscribe: exception = " + ignored.getMessage()+" device status="+device.getConnectionState());
-        }
-        if (!restart) {
-            Log.d("abc", "quit from application device="+getDeviceId());
-            return;
-        } else {
-            Log.d("abc", "trying to disconnect.. device="+getDeviceId()+" status="+device.getConnectionState());
-            subscriptionStop = Observable.interval(0, 500, TimeUnit.MILLISECONDS).map(new Func1<Long, Boolean>() {
-                @Override
-                public Boolean call(Long aLong) {
-                    RxBleDevice device = MyApplication.getRxBleClient().getBleDevice(getDeviceId());
-                    Log.d("abc", "unsubscribe continues... device="+getDeviceId()+" " + device.getConnectionState().toString());
-                    if (device.getConnectionState() == RxBleConnection.RxBleConnectionState.DISCONNECTED) {
-                        subscribeDevice();
-                        return false;
-                    } else return true;
-                }
-            }).takeWhile(new Func1<Boolean, Boolean>() {
-                @Override
-                public Boolean call(Boolean aBoolean) {
-                    Log.d("abc", "unsubscribe continues... device="+getDeviceId()+" " + device.getConnectionState().toString()+" takeWhile="+aBoolean);
-                    return aBoolean;
-                }
-            }).subscribe();
-        }
-        Log.d("abc", ".............unsubscribe device="+getDeviceId());
-
-    }
-
 }

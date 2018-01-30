@@ -26,29 +26,23 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import android.content.Context;
-import android.content.Intent;
+import org.md2k.datakitapi.datatype.DataType;
+import org.md2k.motionsense.device.Sensor;
 
-import org.md2k.mcerebrum.core.access.MCerebrum;
-import org.md2k.mcerebrum.core.access.MCerebrumInfo;
-import org.md2k.motionsense.configuration.ConfigurationManager;
-import org.md2k.motionsense.permission.ActivityPermission;
-import org.md2k.motionsense.permission.Permission;
-import org.md2k.motionsense.plot.ActivityPlotChoice;
+public class Data {
+    private Sensor sensor;
+    private DataType dataType;
 
-public class MyMCerebrumInit extends MCerebrumInfo {
-    @Override
-    public void update(final Context context) {
-        MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
-        MCerebrum.setBackgroundService(context, ServiceMotionSense.class);
-        MCerebrum.setConfigureActivity(context, ActivitySettings.class);
-        MCerebrum.setPermissionActivity(context, ActivityPermission.class);
-        MCerebrum.setConfigured(context, ConfigurationManager.isConfigured());
-        MCerebrum.setConfigureExact(context, ConfigurationManager.isEqualDefault());
-        if(!Permission.hasPermission(context)){
-            Intent intent = new Intent(context, ActivityPermission.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        }
+    public Data(Sensor sensor, DataType dataType) {
+        this.sensor=sensor;
+        this.dataType = dataType;
+    }
+
+    public Sensor getSensor() {
+        return sensor;
+    }
+
+    public DataType getDataType() {
+        return dataType;
     }
 }

@@ -7,21 +7,35 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
-import android.widget.Toast;
+import android.util.Log;
+import android.util.SparseArray;
 
-import org.md2k.datakitapi.DataKitAPI;
-import org.md2k.datakitapi.exception.DataKitException;
-import org.md2k.mcerebrum.commons.permission.Permission;
+import org.md2k.datakitapi.datatype.DataType;
+import org.md2k.datakitapi.source.METADATA;
+import org.md2k.datakitapi.source.datasource.DataSource;
+import org.md2k.datakitapi.source.datasource.DataSourceClient;
+import org.md2k.datakitapi.source.datasource.DataSourceType;
+import org.md2k.motionsense.configuration.ConfigurationManager;
+import org.md2k.motionsense.datakit.DataKitManager;
 import org.md2k.motionsense.device.DeviceManager;
+import org.md2k.motionsense.device.Sensor;
+import org.md2k.motionsense.device.data_quality.DataQualityManager;
+import org.md2k.motionsense.error.ErrorNotify;
+import org.md2k.motionsense.permission.Permission;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
 
-import br.com.goncalves.pugnotification.notification.PugNotification;
-import es.dmoral.toasty.Toasty;
+import rx.BackpressureOverflow;
+import rx.Observable;
+import rx.Observer;
+import rx.Subscription;
+import rx.exceptions.CompositeException;
+import rx.functions.Func1;
+import rx.schedulers.Schedulers;
+
+import static org.md2k.motionsense.ActivitySettings.ACTION_LOCATION_CHANGED;
 
 /*
  * Copyright (c) 2015, The University of Memphis, MD2K Center
@@ -52,107 +66,169 @@ import es.dmoral.toasty.Toasty;
  */
 
 public class ServiceMotionSense extends Service {
-    public static final String INTENT_STOP = "stop";
-    public static final String ACTION_LOCATION_CHANGED = "android.location.PROVIDERS_CHANGED";
+    public static final String INTENT_DATA = "INTENT_DATA";
+    private DataKitManager dataKitManager;
+    DeviceManager deviceManager;
+    Subscription subscription;
+    SparseArray<Summary> summary;
+    DataQualityManager dataQualityManager;
 
-    private DeviceManager deviceManager;
-    private DataKitAPI dataKitAPI = null;
+
 
     @Override
     public void onCreate() {
         super.onCreate();
-        if (Permission.hasPermission(this)) {
-            BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-            if(!mBluetoothAdapter.isEnabled())
-                mBluetoothAdapter.enable();
-            LocationManager locationManager = (LocationManager) this.getSystemService(LOCATION_SERVICE);
-            if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                removeNotification();
-                load();
-            }
-            else {
-                showNotification("Turn on GPS", "Wrist data can't be recorded. (Please click to turn on GPS)");
-                stop();
-                stopSelf();
-            }
-        } else {
-            Toasty.error(getApplicationContext(), "!PERMISSION is not GRANTED !!! Could not continue...", Toast.LENGTH_SHORT).show();
-            showNotification("Permission required", "MotionSense app can't continue. (Please click to grant permission)");
-            stop();
-            stopSelf();
-        }
-    }
-    private void showNotification(String title, String message) {
-        Bundle bundle = new Bundle();
-        bundle.putInt(ActivityMain.OPERATION, ActivityMain.OPERATION_START_BACKGROUND);
-        PugNotification.with(this).load().identifier(21).title(title).smallIcon(R.mipmap.ic_launcher)
-                .message(message).autoCancel(true).click(ActivityMain.class, bundle).simple().build();
-    }
-    private void removeNotification() {
-        PugNotification.with(this).cancel(21);
+        Log.e("abc","Service: onCreate()...");
+        summary=new SparseArray<>();
+        ErrorNotify.removeNotification(ServiceMotionSense.this);
+        loadListener();
+
+        subscription = Observable.just(true)
+                .map(aBoolean -> {
+                    Log.e("abc","permission");
+                    boolean res = Permission.hasPermission(ServiceMotionSense.this);
+                    if (!res) ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.PERMISSION);
+                    return res;
+                }).filter(x -> x)
+                .map(aBoolean -> {
+                    BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                    boolean res = mBluetoothAdapter.isEnabled();
+                    if (!res) ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.BLUETOOTH_OFF);
+                    return res;
+                }).filter(x -> x)
+                .map(aBoolean -> {
+                    LocationManager locationManager = (LocationManager) ServiceMotionSense.this.getSystemService(LOCATION_SERVICE);
+                    boolean res = (locationManager != null && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER));
+                    if (!res) ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.GPS_OFF);
+                    return res;
+                }).filter(x -> x)
+                .map(aBoolean -> {
+                    ArrayList<DataSource> dataSources = ConfigurationManager.read(ServiceMotionSense.this);
+                    if (dataSources == null || dataSources.size() == 0) {
+                        ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.NOT_CONFIGURED);
+                        return false;
+                    }
+                    return true;
+                }).filter(x -> x)
+                .flatMap(aBoolean -> {
+                    dataKitManager = new DataKitManager();
+                    return dataKitManager.connect(ServiceMotionSense.this).map(res -> {
+                        if (!res) ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.DATAKIT_CONNECTION_ERROR);
+                        return res;
+                    });
+                }).doOnUnsubscribe(() -> {
+                    if(dataKitManager!=null)
+                        dataKitManager.disconnect();
+                }).filter(x -> x)
+                .map(aBoolean -> {
+                    ArrayList<DataSource> dataSources = ConfigurationManager.read(ServiceMotionSense.this);
+                    deviceManager = new DeviceManager();
+                    dataQualityManager=new DataQualityManager();
+                    if (dataSources == null || dataSources.size() == 0) return false;
+                    for (int i = 0; i < dataSources.size(); i++) {
+                        DataSourceClient dataSourceClient = dataKitManager.register(dataSources.get(i));
+                        if (dataSourceClient == null) {
+                            ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.DATAKIT_REGISTRATION_ERROR);
+                            return false;
+                        }
+
+                        Sensor sensor = new Sensor(dataSourceClient,
+                                dataSources.get(i).getPlatform().getType(),
+                                dataSources.get(i).getPlatform().getMetadata().get(METADATA.DEVICE_ID),
+                                dataSources.get(i).getMetadata().get("CHARACTERISTIC_NAME"),
+                                dataSources.get(i).getType(),
+                                dataSources.get(i).getId());
+                        if(dataSources.get(i).getType().equals(DataSourceType.DATA_QUALITY)){
+                            dataQualityManager.addSensor(sensor);
+                        }else{
+                            deviceManager.add(sensor);
+                        }
+                    }
+                    return true;
+                }).filter(x -> x)
+                .flatMap(aBoolean -> {
+                    return Observable.merge(deviceManager.connect(ServiceMotionSense.this), dataQualityManager.getObservable());
+                })
+                .doOnUnsubscribe(() -> {
+                    if(deviceManager!=null)
+                        deviceManager.disconnect();
+                })
+                .onBackpressureBuffer(1024, null, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
+                .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
+                    Log.e("abc", "Service: error=" + throwable.toString());
+//                    if(throwable instanceof rx.exceptions.MissingBackpressureException || throwable instanceof CompositeException) {
+                    if(deviceManager!=null)
+                    deviceManager.disconnect();
+                        return Observable.just(null);
+  //                  }else return Observable.error(throwable);
+                }))
+                .observeOn(Schedulers.newThread())
+                .subscribe(new Observer<Data>() {
+                    @Override
+                    public void onCompleted() {
+                        Log.e("abc","Service -> onCompleted()");
+                        Intent intent = new Intent(ServiceMotionSense.this, ActivityError.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        intent.putExtra("error", "service: onCompleted");
+                        ServiceMotionSense.this.startActivity(intent);
+                        unsubscribe();
+                        stopSelf();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Intent intent = new Intent(ServiceMotionSense.this, ActivityError.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        intent.putExtra("error", "service:" +e.toString());
+                        ServiceMotionSense.this.startActivity(intent);
+                        Log.e("abc","Service onError()... e="+e.toString()+" ");
+                        unsubscribe();
+                        stopSelf();
+                    }
+
+                    @Override
+                    public void onNext(Data data) {
+                        dataKitManager.insert(data.getSensor().getDataSourceClient(), data.getDataType());
+                        if(data.getSensor().getDataSourceType().equals(DataSourceType.DATA_QUALITY))
+                            dataKitManager.setSummary(data.getSensor().getDataSourceClient(), dataQualityManager.getSummary(data));
+                        else
+                            dataQualityManager.addData(data);
+
+                        Intent intent=new Intent(INTENT_DATA);
+                        Summary s = summary.get(data.getSensor().getDataSourceClient().getDs_id());
+                        if(s==null){
+                            s=new Summary();
+                            summary.put(data.getSensor().getDataSourceClient().getDs_id(), s);
+                        }
+                        s.set();
+                        intent.putExtra(DataSource.class.getSimpleName(), data.getSensor().getDataSourceClient().getDataSource());
+                        intent.putExtra(DataType.class.getSimpleName(), data.getDataType());
+                        intent.putExtra(Summary.class.getSimpleName(), s);
+                        LocalBroadcastManager.getInstance(ServiceMotionSense.this).sendBroadcast(intent);
+                    }
+                });
     }
 
-    void load() {
+    void loadListener() {
         IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
         filter.addAction(ACTION_LOCATION_CHANGED);
         registerReceiver(mReceiver, filter);
-        LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(mMessageReceiverStop,
-                new IntentFilter(INTENT_STOP));
-        if (readSettings())
-            connectDataKit();
-        else {
-            showAlertDialogConfiguration(this);
-            stop();
-            stopSelf();
-        }
-    }
-
-    private boolean readSettings() {
-        deviceManager = new DeviceManager();
-        return deviceManager.size() != 0;
-    }
-
-
-    private void connectDataKit() {
-        dataKitAPI = DataKitAPI.getInstance(getApplicationContext());
-        try {
-            dataKitAPI.connect(new org.md2k.datakitapi.messagehandler.OnConnectionListener() {
-                @Override
-                public void onConnected() {
-                    deviceManager.start();
-                }
-            });
-        } catch (DataKitException e) {
-            stop();
-            stopSelf();
-        }
-    }
-    void stop(){
-        try{
-            LocalBroadcastManager.getInstance(this).unregisterReceiver(mMessageReceiverStop);
-        }catch (Exception e){
-
-        }
-        try{
-            unregisterReceiver(mReceiver);
-        }catch (Exception e){
-
-        }
-        try {
-            deviceManager.stop();
-        } catch (Exception ignored) {
-
-        }
-        if (dataKitAPI != null) {
-            dataKitAPI.disconnect();
-        }
     }
 
     @Override
     public void onDestroy() {
-        stop();
+        unsubscribe();
+        try {
+            unregisterReceiver(mReceiver);
+        }catch (Exception ignored){}
+        Log.e("abc","Service: onDestroy()...");
         super.onDestroy();
+    }
+    void unsubscribe(){
+        if (subscription != null && !subscription.isUnsubscribed())
+            subscription.unsubscribe();
+        subscription=null;
     }
 
     @Override
@@ -160,51 +236,25 @@ public class ServiceMotionSense extends Service {
         throw new UnsupportedOperationException("Not yet implemented");
     }
 
-
-    void showAlertDialogConfiguration(final Context context) {
-/*
-        AlertDialogs.AlertDialog(this, "Error: MotionSense Settings", "Please configure MotionSense", R.drawable.ic_error_red_50dp, "Settings", "Cancel", null, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                if (which == AlertDialog.BUTTON_POSITIVE) {
-                    Intent intent = new Intent(context, ActivitySettings.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(intent);
-                }
-            }
-        });
-*/
-    }
-
-    private BroadcastReceiver mMessageReceiverStop = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            stop();
-            stopSelf();
-        }
-    };
-
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+            if (action!=null && action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
                 final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
                 switch (state) {
                     case BluetoothAdapter.STATE_OFF:
                     case BluetoothAdapter.STATE_TURNING_OFF:
-                        Toasty.error(ServiceMotionSense.this, "Bluetooth is off. Please turn on bluetooth", Toast.LENGTH_SHORT).show();
-                        showNotification("Turn on Bluetooth", "Wrist data con't be recorded. Please click to turn on bluetooth");
-                        stop();
+                        ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.BLUETOOTH_OFF);
+                        unsubscribe();
                         stopSelf();
+                        break;
                 }
-            } else if (action.equals(ACTION_LOCATION_CHANGED)) {
+            } else if (action!=null && action.equals(ACTION_LOCATION_CHANGED)) {
                 LocationManager locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
-                if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                } else {
-                    Toasty.error(context, "Please turn on GPS", Toast.LENGTH_SHORT).show();
-                    showNotification("Turn on GPS", "Wrist data can't be recorded. (Please click to turn on GPS)");
-                    stop();
+                if (locationManager!=null && !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.GPS_OFF);
+                    unsubscribe();
                     stopSelf();
                 }
             }

@@ -1,4 +1,4 @@
-package org.md2k.motionsense;
+package org.md2k.motionsense.device.data_quality;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,29 +26,41 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import android.content.Context;
-import android.content.Intent;
+import org.md2k.datakitapi.datatype.DataType;
+import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
+import org.md2k.datakitapi.datatype.DataTypeInt;
+import org.md2k.datakitapi.datatype.DataTypeIntArray;
+import org.md2k.datakitapi.time.DateTime;
+import org.md2k.motionsense.Data;
+import org.md2k.motionsense.device.Sensor;
 
-import org.md2k.mcerebrum.core.access.MCerebrum;
-import org.md2k.mcerebrum.core.access.MCerebrumInfo;
-import org.md2k.motionsense.configuration.ConfigurationManager;
-import org.md2k.motionsense.permission.ActivityPermission;
-import org.md2k.motionsense.permission.Permission;
-import org.md2k.motionsense.plot.ActivityPlotChoice;
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
-public class MyMCerebrumInit extends MCerebrumInfo {
-    @Override
-    public void update(final Context context) {
-        MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
-        MCerebrum.setBackgroundService(context, ServiceMotionSense.class);
-        MCerebrum.setConfigureActivity(context, ActivitySettings.class);
-        MCerebrum.setPermissionActivity(context, ActivityPermission.class);
-        MCerebrum.setConfigured(context, ConfigurationManager.isConfigured());
-        MCerebrum.setConfigureExact(context, ConfigurationManager.isEqualDefault());
-        if(!Permission.hasPermission(context)){
-            Intent intent = new Intent(context, ActivityPermission.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        }
+import rx.Observable;
+
+public abstract class DataQuality {
+    private static final int DELAY = 3000;
+    ArrayList<DataTypeDoubleArray> samples;
+    DataQuality(){
+        samples=new ArrayList<>();
+    }
+    public abstract int getStatus();
+    public Observable<Data> start(Sensor sensor){
+        return Observable.interval(DELAY, DELAY, TimeUnit.MILLISECONDS).map(aLong -> {
+            DataTypeInt dataTypeInt = new DataTypeInt(DateTime.getDateTime(), getStatus());
+            return new Data(sensor, dataTypeInt);
+        });
+    }
+    public synchronized void add(DataTypeDoubleArray sample) {
+        samples.add(sample);
+    }
+
+    DataType getSummary(DataTypeInt dataTypeInt) {
+            int[] intArray=new int[7];
+            for(int i=0;i<7;i++) intArray[i]=0;
+            int value=dataTypeInt.getSample();
+            intArray[value]=DELAY;
+            return new DataTypeIntArray(dataTypeInt.getDateTime(), intArray);
     }
 }

@@ -16,7 +16,7 @@ import org.md2k.datakitapi.datatype.DataTypeFloatArray;
 import org.md2k.datakitapi.source.datasource.DataSource;
 import org.md2k.datakitapi.source.datasource.DataSourceType;
 import org.md2k.mcerebrum.commons.plot.RealtimeLineChartActivity;
-import org.md2k.motionsense.ActivityMain;
+import org.md2k.motionsense.ServiceMotionSense;
 
 public class ActivityPlot extends RealtimeLineChartActivity {
     DataSource dataSource;
@@ -34,7 +34,7 @@ public class ActivityPlot extends RealtimeLineChartActivity {
     @Override
     public void onResume() {
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver,
-                new IntentFilter(ActivityMain.INTENT_NAME));
+                new IntentFilter(ServiceMotionSense.INTENT_DATA));
 
         super.onResume();
     }
@@ -42,7 +42,14 @@ public class ActivityPlot extends RealtimeLineChartActivity {
     private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            updatePlot(intent);
+            DataSource ds = intent.getParcelableExtra(DataSource.class.getSimpleName());
+            if(!ds.getType().equals(dataSource.getType())) return;
+            if(ds.getId()!=null && dataSource.getId()!=null && !ds.getId().equals(dataSource.getId())) return;
+            if(ds.getId()==null && dataSource.getId()!=null) return;
+            if(ds.getId()!=null && dataSource.getId()==null) return;
+            if(!ds.getPlatform().getId().equals(dataSource.getPlatform().getId())) return;
+//            if(!ds.getPlatform().getType().equals(dataSource.getPlatform().getType())) return;
+            updatePlot(intent, ds.getType());
         }
     };
 
@@ -53,24 +60,38 @@ public class ActivityPlot extends RealtimeLineChartActivity {
         super.onPause();
     }
 
-    void updatePlot(Intent intent) {
+    void updatePlot(Intent intent, String ds) {
         float[] sample = new float[1];
         String[] legends;
-        String ds = intent.getStringExtra("key");
-        String pi = intent.getStringExtra("platformid");
-        if (!ds.equals(dataSource.getType()) || !pi.equals(dataSource.getPlatform().getId())) return;
+
         getmChart().getDescription().setText(dataSource.getType());
         getmChart().getDescription().setPosition(1f, 1f);
         getmChart().getDescription().setEnabled(true);
         getmChart().getDescription().setTextColor(Color.WHITE);
-        if (ds.equals(DataSourceType.LED))
-            legends = new String[]{"LED 1", "LED 2", "LED 3"};
-        else if (ds.equals(DataSourceType.ACCELEROMETER)) {
-            legends = new String[]{"Accelerometer X", "Accelerometer Y", "Accelerometer Z"};
-        } else if (ds.equals(DataSourceType.GYROSCOPE)) {
-            legends = new String[]{"Gyroscope X", "Gyroscope Y", "Gyroscope Z"};
-        } else legends = new String[]{ds};
-        DataType data = intent.getParcelableExtra("data");
+        switch (ds) {
+            case DataSourceType.LED:
+                legends = new String[]{"LED 1", "LED 2", "LED 3"};
+                break;
+            case DataSourceType.ACCELEROMETER:
+                legends = new String[]{"Accelerometer X", "Accelerometer Y", "Accelerometer Z"};
+                break;
+            case DataSourceType.GYROSCOPE:
+                legends = new String[]{"Gyroscope X", "Gyroscope Y", "Gyroscope Z"};
+                break;
+            case DataSourceType.MAGNETOMETER:
+                legends = new String[]{"Magnetometer X", "Magnetometer Y", "Magnetometer Z"};
+                break;
+            case DataSourceType.QUATERNION:
+                legends = new String[]{"Quaternion X", "Quaternion Y", "Quaternion Z"};
+                break;
+            case DataSourceType.MAGNETOMETER_SENSITIVITY:
+                legends = new String[]{"Sensitivity X", "Sensitivity Y", "Sensitivity Z"};
+                break;
+            default:
+                legends = new String[]{ds};
+                break;
+        }
+        DataType data = intent.getParcelableExtra(DataType.class.getSimpleName());
         if (data instanceof DataTypeFloat) {
             sample = new float[]{((DataTypeFloat) data).getSample()};
         } else if (data instanceof DataTypeFloatArray) {

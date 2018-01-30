@@ -1,25 +1,6 @@
 package org.md2k.motionsense.device;
-
-import android.content.Context;
-import android.util.Log;
-import android.widget.Toast;
-
-import org.md2k.datakitapi.exception.DataKitException;
-import org.md2k.datakitapi.source.METADATA;
-import org.md2k.datakitapi.source.datasource.DataSource;
-import org.md2k.datakitapi.source.datasource.DataSourceBuilder;
-import org.md2k.datakitapi.source.platform.Platform;
-import org.md2k.datakitapi.source.platform.PlatformBuilder;
-import org.md2k.motionsense.Constants;
-import org.md2k.motionsense.configuration.Configuration;
-
-import java.io.IOException;
-import java.util.ArrayList;
-
-import es.dmoral.toasty.Toasty;
-
 /*
- * Copyright (c) 2015, The University of Memphis, MD2K Center
+ * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
  * All rights reserved.
  *
@@ -44,90 +25,73 @@ import es.dmoral.toasty.Toasty;
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+import android.content.Context;
+
+import org.md2k.datakitapi.source.platform.PlatformType;
+import org.md2k.motionsense.Data;
+import org.md2k.motionsense.ReceiveCallback;
+import org.md2k.motionsense.device.motionsense.MotionSense;
+import org.md2k.motionsense.device.motionsense_hrv.MotionSenseHRV;
+import org.md2k.motionsense.device.motionsense_hrv_plus.MotionSenseHRVPlus;
+
+import java.util.ArrayList;
+
+import rx.Observable;
+import rx.Subscriber;
+
 public class DeviceManager {
-    private Devices devicesConfigured;
-    private Devices devicesDefault;
-    private MetaData metaData;
+    private ArrayList<Device> devices;
 
     public DeviceManager() {
-        devicesConfigured=new Devices(Configuration.CONFIG_DIRECTORY, Configuration.CONFIG_FILENAME);
-        devicesDefault=new Devices(Configuration.CONFIG_DIRECTORY, Configuration.DEFAULT_CONFIG_FILENAME);
-
-        metaData=new MetaData();
+        devices = new ArrayList<>();
     }
-    public void add(String type, String id, String deviceId){
-        ArrayList<DataSource> dataSources;
-        dataSources=metaData.getDataSources(type);
 
-/*
-        if(hasDefault() && devicesDefault.getDataSources(type, id).size()!=0){
-            dataSources=devicesDefault.getDataSources(type,id);
-        }else{
-            dataSources=metaData.getDataSources(type);
+    public Observable<Data> connect(Context context) {
+        return Observable.create((Subscriber<? super Data> subscriber) -> {
+            for (int i = 0; i < devices.size(); i++)
+                devices.get(i).connect(context, new ReceiveCallback() {
+                    @Override
+                    public void onReceive(Data t) {
+                        subscriber.onNext(t);
+                    }
+                });
+        });
+    }
+
+    public void add(Sensor sensor) {
+        Device device = getDevice(sensor.getDeviceId());
+        if (device == null) {
+            switch (sensor.getDeviceType()) {
+                case PlatformType.MOTION_SENSE:
+                    device = new MotionSense(sensor.getDeviceId());
+                    break;
+                case PlatformType.MOTION_SENSE_HRV:
+                    device = new MotionSenseHRV(sensor.getDeviceId());
+                    break;
+                case PlatformType.MOTION_SENSE_HRV_PLUS:
+                    device = new MotionSenseHRVPlus(sensor.getDeviceId());
+                    break;
+                default:
+                    break;
+            }
+            if (device != null)
+                devices.add(device);
+            else return;
         }
-*/
-
-        for(int i=0;i<dataSources.size();i++) {
-            DataSource temp=metaData.getDataSource(dataSources.get(i).getType(), dataSources.get(i).getId(), dataSources.get(i).getPlatform().getType());
-            Platform platform=new PlatformBuilder(temp.getPlatform()).setType(type).setId(id).setMetadata(METADATA.DEVICE_ID, deviceId).build();
-            DataSource dataSource=new DataSourceBuilder(temp).setPlatform(platform).build();
-            devicesConfigured.add(dataSource);
-
-        }
+        device.add(sensor);
     }
 
-    public boolean hasDefault(){
-        return devicesDefault.size() != 0;
-    }
-    public String[] getDefaultList(){
-        if(!hasDefault()) return null;
-        String[] list=new String[devicesDefault.size()];
-        for(int i=0;i<devicesDefault.size();i++)
-            list[i]=devicesDefault.get(i).getId();
-        return list;
-    }
-    public int size(){
-        return devicesConfigured.size();
-    }
-    public void writeConfiguration(Context context){
-        try {
-            devicesConfigured.writeConfiguration(Configuration.CONFIG_DIRECTORY, Configuration.CONFIG_FILENAME);
-        } catch (IOException e) {
-            Toasty.error(context, "Error: Could not Save..."+e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
+    public void disconnect() {
+        for (int i = 0; i < devices.size(); i++)
+            devices.get(i).disconnect();
     }
 
-    public Device find(String deviceId){
-        return devicesConfigured.find(deviceId);
-    }
-    public Device get(int i) {
-        return devicesConfigured.get(i);
-    }
-
-    public void start() {
-        devicesConfigured.start();
-    }
-    public void stop(){
-        devicesConfigured.stop();
-    }
-    public void delete(String deviceId){
-        devicesConfigured.delete(deviceId);
-    }
-    public boolean isMotionSense(String name, String serviceID) {
-        return !(name == null || serviceID == null) && name.equals(Constants.MOTION_SENSE) && serviceID.equals(Constants.DEVICE_UUID.toString());
-    }
-    public boolean isMotionSenseHRV(String name, String serviceID) {
-        return !(name == null || serviceID == null) && name.equals(Constants.MOTION_SENSE_HRV) && serviceID.equals(Constants.DEVICE_UUID.toString());
+    private Device getDevice(String id) {
+        for (int i = 0; i < devices.size(); i++)
+            if (devices.get(i).getDeviceId().equals(id))
+                return devices.get(i);
+        return null;
     }
 
-    public boolean isConfigured(String deviceId) {
-        return devicesConfigured.find(deviceId) != null;
-    }
-    public boolean isConfigured(String id, String deviceId) {
-        return isConfigured(deviceId) || devicesConfigured.findId(id) != null;
-    }
-
-    public Devices get() {
-        return devicesConfigured;
-    }
 }

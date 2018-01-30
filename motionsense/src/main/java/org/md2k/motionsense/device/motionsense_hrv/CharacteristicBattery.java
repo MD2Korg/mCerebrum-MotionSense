@@ -1,4 +1,4 @@
-package org.md2k.motionsense;
+package org.md2k.motionsense.device.motionsense_hrv;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,29 +26,34 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import android.content.Context;
-import android.content.Intent;
+import com.polidea.rxandroidble.RxBleConnection;
 
-import org.md2k.mcerebrum.core.access.MCerebrum;
-import org.md2k.mcerebrum.core.access.MCerebrumInfo;
-import org.md2k.motionsense.configuration.ConfigurationManager;
-import org.md2k.motionsense.permission.ActivityPermission;
-import org.md2k.motionsense.permission.Permission;
-import org.md2k.motionsense.plot.ActivityPlotChoice;
+import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
+import org.md2k.datakitapi.time.DateTime;
+import org.md2k.motionsense.device.Characteristic;
+import org.md2k.motionsense.Data;
+import org.md2k.motionsense.device.Sensor;
 
-public class MyMCerebrumInit extends MCerebrumInfo {
+import java.util.ArrayList;
+import java.util.UUID;
+
+import rx.Observable;
+
+public class CharacteristicBattery extends Characteristic {
+
+    CharacteristicBattery() {
+        super("00002A19-0000-1000-8000-00805f9b34fb", "CHARACTERISTIC_BATTERY", 25.0);
+        //TODO fix frequency
+
+    }
+
     @Override
-    public void update(final Context context) {
-        MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
-        MCerebrum.setBackgroundService(context, ServiceMotionSense.class);
-        MCerebrum.setConfigureActivity(context, ActivitySettings.class);
-        MCerebrum.setPermissionActivity(context, ActivityPermission.class);
-        MCerebrum.setConfigured(context, ConfigurationManager.isConfigured());
-        MCerebrum.setConfigureExact(context, ConfigurationManager.isEqualDefault());
-        if(!Permission.hasPermission(context)){
-            Intent intent = new Intent(context, ActivityPermission.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        }
+    public Observable<Data> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
+        UUID uuid = UUID.fromString(getId());
+        return rxBleConnection.setupNotification(uuid)
+                .flatMap(notificationObservable -> notificationObservable).map(bytes -> {
+                    DataTypeDoubleArray battery = new DataTypeDoubleArray(DateTime.getDateTime(), TranslateBattery.getBattery(bytes));
+                    return new Data(sensors.get(0), battery);
+                });
     }
 }

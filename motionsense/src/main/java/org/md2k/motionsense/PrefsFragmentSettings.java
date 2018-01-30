@@ -1,5 +1,6 @@
 package org.md2k.motionsense;
 
+import android.bluetooth.BluetoothDevice;
 import android.os.Bundle;
 import android.os.ParcelUuid;
 import android.preference.ListPreference;
@@ -17,11 +18,18 @@ import com.polidea.rxandroidble.RxBleClient;
 import com.polidea.rxandroidble.scan.ScanResult;
 import com.polidea.rxandroidble.scan.ScanSettings;
 
+import org.md2k.datakitapi.source.METADATA;
+import org.md2k.datakitapi.source.platform.Platform;
 import org.md2k.datakitapi.source.platform.PlatformType;
 import org.md2k.mcerebrum.commons.dialog.Dialog;
-import org.md2k.mcerebrum.commons.dialog.DialogCallback;
-import org.md2k.motionsense.device.DeviceManager;
+import org.md2k.motionsense.configuration.ConfigurationManager;
+import org.md2k.motionsense.device.motionsense.MotionSense;
+import org.md2k.motionsense.device.motionsense_hrv.MotionSenseHRV;
+import org.md2k.motionsense.device.motionsense_hrv_plus.MotionSenseHRVPlus;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import rx.Observer;
@@ -55,24 +63,25 @@ import rx.Subscription;
  */
 public class PrefsFragmentSettings extends PreferenceFragment {
     Subscription scanSubscription;
-    private DeviceManager deviceManager;
+    HashMap<String, BluetoothDevice> devices;
 
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        deviceManager = new DeviceManager();
+        devices=new HashMap<>();
         addPreferencesFromResource(R.xml.pref_settings);
         setPreferenceScreenConfigured();
     }
+
     @Override
-    public void onResume(){
+    public void onResume() {
         scan();
         super.onResume();
     }
 
     void scan() {
-        RxBleClient rxBleClient = MyApplication.getRxBleClient();
+        RxBleClient rxBleClient = MyApplication.getRxBleClient(getActivity());
         scanSubscription = rxBleClient.scanBleDevices(
                 new ScanSettings.Builder()
                         // .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY) // change if needed
@@ -96,26 +105,35 @@ public class PrefsFragmentSettings extends PreferenceFragment {
                 String name = scanResult.getScanRecord().getDeviceName();
                 List<ParcelUuid> p = scanResult.getScanRecord().getServiceUuids();
                 if (p == null || p.size() != 1 || name == null) return;
-                if (!deviceManager.isMotionSense(name, p.get(0).toString()) && !deviceManager.isMotionSenseHRV(name, p.get(0).toString()))
+                if (!(MotionSense.is(name, p.get(0).toString()) || MotionSenseHRV.is(name, p.get(0).toString()) || MotionSenseHRVPlus.is(name, p.get(0).toString())))
                     return;
-                if (deviceManager.isConfigured(scanResult.getBleDevice().getMacAddress())) return;
-                if (deviceManager.isMotionSense(name, p.get(0).toString()))
+                if(!devices.containsKey(scanResult.getBleDevice().getMacAddress()))
+                    devices.put(scanResult.getBleDevice().getMacAddress(), scanResult.getBleDevice().getBluetoothDevice());
+                if (ConfigurationManager.isConfigured(scanResult.getBleDevice().getMacAddress()))
+                    return;
+                if (MotionSense.is(name, p.get(0).toString()))
                     addToPreferenceScreenAvailable(PlatformType.MOTION_SENSE, scanResult.getBleDevice().getMacAddress());
-                else
+                else if (MotionSenseHRV.is(name, p.get(0).toString()))
                     addToPreferenceScreenAvailable(PlatformType.MOTION_SENSE_HRV, scanResult.getBleDevice().getMacAddress());
+                else
+                    addToPreferenceScreenAvailable(PlatformType.MOTION_SENSE_HRV_PLUS, scanResult.getBleDevice().getMacAddress());
             }
         });
     }
 
+
     void setPreferenceScreenConfigured() {
         PreferenceCategory category = (PreferenceCategory) findPreference("key_device_configured");
         category.removeAll();
-        for (int i = 0; i < deviceManager.size(); i++) {
+        ArrayList<Platform> platforms = ConfigurationManager.getPlatforms();
+        for (int i = 0; i < platforms.size(); i++) {
             Preference preference = new Preference(getActivity());
-            preference.setKey(deviceManager.get(i).getDeviceId());
-            preference.setTitle(deviceManager.get(i).getId());
-            preference.setSummary(deviceManager.get(i).getType() + " (" + deviceManager.get(i).getDeviceId() + ")");
-            if (deviceManager.get(i).getType().equals(PlatformType.MOTION_SENSE_HRV))
+            preference.setKey(platforms.get(i).getMetadata().get(METADATA.DEVICE_ID));
+            preference.setTitle(platforms.get(i).getId());
+            preference.setSummary(platforms.get(i).getType() + " (" + platforms.get(i).getMetadata().get(METADATA.DEVICE_ID) + ")");
+            if (platforms.get(i).getType().equals(PlatformType.MOTION_SENSE_HRV_PLUS))
+                preference.setIcon(R.drawable.ic_watch_plus);
+            else if (platforms.get(i).getType().equals(PlatformType.MOTION_SENSE_HRV))
                 preference.setIcon(R.drawable.ic_watch_heart);
             else
                 preference.setIcon(R.drawable.ic_watch);
@@ -130,30 +148,37 @@ public class PrefsFragmentSettings extends PreferenceFragment {
             if (category.getPreference(i).getKey().equals(deviceId))
                 return;
         ListPreference listPreference = new ListPreference(getActivity());
-        if (deviceManager.hasDefault()) {
-            listPreference.setEntryValues(deviceManager.getDefaultList());
-            listPreference.setEntries(deviceManager.getDefaultList());
-/*
-            listPreference.setEntryValues(R.array.wrist_entryValues);
-            listPreference.setEntries(R.array.wrist_entries);
-*/
-        } else {
-            listPreference.setEntryValues(R.array.wrist_entryValues_extended);
-            listPreference.setEntries(R.array.wrist_entries_extended);
+        listPreference.setEntryValues(R.array.wrist_entryValues_extended);
+        listPreference.setEntries(R.array.wrist_entries_extended);
+
+        if (ConfigurationManager.hasDefault()) {
+            String[] s = ConfigurationManager.getPlatformIdFromDefault();
+            if (s != null && s.length != 0) {
+                listPreference.setEntryValues(s);
+                listPreference.setEntries(s);
+            }
         }
         listPreference.setKey(deviceId);
         listPreference.setTitle(deviceId);
         listPreference.setSummary(type);
-        if (type.equals(PlatformType.MOTION_SENSE_HRV))
-            listPreference.setIcon(R.drawable.ic_watch_heart);
-        else
-            listPreference.setIcon(R.drawable.ic_watch);
+        switch (type) {
+            case PlatformType.MOTION_SENSE_HRV:
+                listPreference.setIcon(R.drawable.ic_watch_heart);
+                break;
+            case PlatformType.MOTION_SENSE_HRV_PLUS:
+                listPreference.setIcon(R.drawable.ic_watch_plus);
+                break;
+            default:
+                listPreference.setIcon(R.drawable.ic_watch);
+                break;
+        }
         listPreference.setOnPreferenceChangeListener((preference, newValue) -> {
-            if (deviceManager.isConfigured(newValue.toString(), preference.getKey()))
+            if (ConfigurationManager.isConfigured(newValue.toString(), preference.getKey()))
                 Toast.makeText(getActivity(), "Device: " + preference.getKey() + "and/or Placement:" + newValue.toString() + " already configured", Toast.LENGTH_LONG).show();
             else {
-                deviceManager.add(preference.getSummary().toString(), newValue.toString(), preference.getKey());
-                deviceManager.writeConfiguration(getActivity());
+                ConfigurationManager.addPlatform(getActivity(), preference.getSummary().toString(), newValue.toString(), preference.getKey());
+                if(devices.containsKey(preference.getKey()))
+                    BLEPair.pairDevice(getActivity(), devices.get(preference.getKey()));
                 setPreferenceScreenConfigured();
                 category.removePreference(preference);
             }
@@ -165,14 +190,12 @@ public class PrefsFragmentSettings extends PreferenceFragment {
     private Preference.OnPreferenceClickListener preferenceListenerConfigured() {
         return preference -> {
             final String deviceId = preference.getKey();
-            Dialog.simple(getActivity(), "Delete Device", "Delete Device (" + preference.getTitle() + ")?", "Delete", "Cancel", new DialogCallback() {
-                @Override
-                public void onSelected(String value) {
-                    if ("Delete".equals(value)) {
-                        deviceManager.delete(deviceId);
-                        deviceManager.writeConfiguration(getActivity());
-                        setPreferenceScreenConfigured();
-                    }
+            Dialog.simple(getActivity(), "Delete Device", "Delete Device (" + preference.getTitle() + ")?", "Delete", "Cancel", value -> {
+                if ("Delete".equals(value)) {
+                    ConfigurationManager.deleteDevice(deviceId);
+                    if(devices.containsKey(deviceId))
+                        BLEPair.unpairDevice(getActivity(), devices.get(deviceId));
+                    setPreferenceScreenConfigured();
                 }
             }).show();
             return true;
@@ -201,8 +224,8 @@ public class PrefsFragmentSettings extends PreferenceFragment {
     }
 
     @Override
-    public void onPause(){
-        if(scanSubscription!=null && !scanSubscription.isUnsubscribed())
+    public void onPause() {
+        if (scanSubscription != null && !scanSubscription.isUnsubscribed())
             scanSubscription.unsubscribe();
         super.onPause();
     }

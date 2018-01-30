@@ -8,12 +8,9 @@ import android.view.MenuItem;
 import android.widget.Toast;
 
 import org.md2k.datakitapi.source.datasource.DataSource;
-import org.md2k.datakitapi.source.datasource.DataSourceBuilder;
-import org.md2k.datakitapi.source.platform.Platform;
-import org.md2k.datakitapi.source.platform.PlatformBuilder;
-import org.md2k.mcerebrum.commons.permission.Permission;
-import org.md2k.mcerebrum.commons.permission.PermissionCallback;
 import org.md2k.motionsense.R;
+import org.md2k.motionsense.permission.Permission;
+import org.md2k.motionsense.permission.PermissionCallback;
 
 /**
  * Copyright (c) 2015, The University of Memphis, MD2K Center

@@ -26,29 +26,40 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
-import android.content.Intent;
 
-import org.md2k.mcerebrum.core.access.MCerebrum;
-import org.md2k.mcerebrum.core.access.MCerebrumInfo;
-import org.md2k.motionsense.configuration.ConfigurationManager;
-import org.md2k.motionsense.permission.ActivityPermission;
-import org.md2k.motionsense.permission.Permission;
-import org.md2k.motionsense.plot.ActivityPlotChoice;
+import com.polidea.rxandroidble.RxBleClient;
+import com.polidea.rxandroidble.RxBleDevice;
 
-public class MyMCerebrumInit extends MCerebrumInfo {
-    @Override
-    public void update(final Context context) {
-        MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
-        MCerebrum.setBackgroundService(context, ServiceMotionSense.class);
-        MCerebrum.setConfigureActivity(context, ActivitySettings.class);
-        MCerebrum.setPermissionActivity(context, ActivityPermission.class);
-        MCerebrum.setConfigured(context, ConfigurationManager.isConfigured());
-        MCerebrum.setConfigureExact(context, ConfigurationManager.isEqualDefault());
-        if(!Permission.hasPermission(context)){
-            Intent intent = new Intent(context, ActivityPermission.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
+import java.lang.reflect.Method;
+import java.util.Set;
+
+public class BLEPair {
+    public static void pairDevice(Context context, BluetoothDevice device) {
+        try {
+            if(isPaired(context, device.getAddress())) return;
+            Method m = device.getClass().getMethod("createBond", (Class[]) null);
+            m.invoke(device, (Object[]) null);
+        } catch (Exception ignored) {
         }
     }
+
+    static void unpairDevice(Context context, BluetoothDevice device) {
+        try {
+            if(!isPaired(context, device.getAddress())) return;
+            Method m = device.getClass().getMethod("removeBond", (Class[]) null);
+            m.invoke(device, (Object[]) null);
+        } catch (Exception ignored) {
+        }
+    }
+    private static boolean isPaired(Context context, String macAddress){
+        RxBleClient rxBleClient = MyApplication.getRxBleClient(context);
+        Set<RxBleDevice> rxBleDeviceSet = rxBleClient.getBondedDevices();
+        for (RxBleDevice rxBleDevice : rxBleDeviceSet) {
+            if (rxBleDevice.getMacAddress().equals(macAddress)) return true;
+        }
+        return false;
+    }
+
 }

@@ -28,6 +28,7 @@ package org.md2k.motionsense;
 
 import android.app.Application;
 import android.content.Context;
+import android.util.Log;
 
 import com.polidea.rxandroidble.RxBleClient;
 import com.polidea.rxandroidble.internal.RxBleLog;
@@ -35,23 +36,24 @@ import com.polidea.rxandroidble.internal.RxBleLog;
 import org.md2k.mcerebrum.core.access.MCerebrum;
 
 public class MyApplication extends Application {
-    private static RxBleClient rxBleClient;
-    private static Context context;
+    private RxBleClient rxBleClient;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        Log.d("abc","MyApplication.. onCreate()");
         rxBleClient = RxBleClient.create(this);
-        RxBleClient.setLogLevel(RxBleLog.DEBUG);
+//        RxBleClient.setLogLevel(RxBleLog.);
         MCerebrum.init(getApplicationContext(), MyMCerebrumInit.class);
-        context=this;
-    }
-    public static Context getContext(){
-        return context;
+        Log.d("abc","rxBleClient: state="+rxBleClient.getState().toString());
+        Log.d("abc","rxBleClient: bondedDevices size="+rxBleClient.getBondedDevices().size());
     }
 
-    public static RxBleClient getRxBleClient() {
-        return rxBleClient;
+    public static RxBleClient getRxBleClient(Context context) {
+        MyApplication application = (MyApplication) context.getApplicationContext();
+        Log.d("abc","rxBleClient: state="+application.rxBleClient.getState().toString());
+        Log.d("abc","rxBleClient: bondedDevices size="+application.rxBleClient.getBondedDevices().size());
+        return application.rxBleClient;
     }
 }
 

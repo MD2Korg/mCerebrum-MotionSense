@@ -26,29 +26,59 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import android.content.Context;
-import android.content.Intent;
+import android.os.Parcel;
+import android.os.Parcelable;
 
-import org.md2k.mcerebrum.core.access.MCerebrum;
-import org.md2k.mcerebrum.core.access.MCerebrumInfo;
-import org.md2k.motionsense.configuration.ConfigurationManager;
-import org.md2k.motionsense.permission.ActivityPermission;
-import org.md2k.motionsense.permission.Permission;
-import org.md2k.motionsense.plot.ActivityPlotChoice;
+import org.md2k.datakitapi.time.DateTime;
 
-public class MyMCerebrumInit extends MCerebrumInfo {
-    @Override
-    public void update(final Context context) {
-        MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
-        MCerebrum.setBackgroundService(context, ServiceMotionSense.class);
-        MCerebrum.setConfigureActivity(context, ActivitySettings.class);
-        MCerebrum.setPermissionActivity(context, ActivityPermission.class);
-        MCerebrum.setConfigured(context, ConfigurationManager.isConfigured());
-        MCerebrum.setConfigureExact(context, ConfigurationManager.isEqualDefault());
-        if(!Permission.hasPermission(context)){
-            Intent intent = new Intent(context, ActivityPermission.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
+public class Summary implements Parcelable{
+    private long startTimestamp;
+    private int count;
+    Summary(){
+        startTimestamp= DateTime.getDateTime();
+        count = 0;
+    }
+
+    protected Summary(Parcel in) {
+        startTimestamp = in.readLong();
+        count = in.readInt();
+    }
+
+    public static final Creator<Summary> CREATOR = new Creator<Summary>() {
+        @Override
+        public Summary createFromParcel(Parcel in) {
+            return new Summary(in);
         }
+
+        @Override
+        public Summary[] newArray(int size) {
+            return new Summary[size];
+        }
+    };
+
+    public void set(){
+        count++;
+    }
+
+    public long getStartTimestamp() {
+        return startTimestamp;
+    }
+
+    public int getCount() {
+        return count;
+    }
+    public double getFrequency(){
+        return (double)count/ ((DateTime.getDateTime()-startTimestamp)/1000.0);
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeLong(startTimestamp);
+        dest.writeInt(count);
     }
 }

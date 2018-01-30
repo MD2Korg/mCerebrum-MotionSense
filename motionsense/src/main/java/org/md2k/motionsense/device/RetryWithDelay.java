@@ -1,4 +1,4 @@
-package org.md2k.motionsense;
+package org.md2k.motionsense.device;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,29 +26,36 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import android.content.Context;
-import android.content.Intent;
+import java.util.concurrent.TimeUnit;
 
-import org.md2k.mcerebrum.core.access.MCerebrum;
-import org.md2k.mcerebrum.core.access.MCerebrumInfo;
-import org.md2k.motionsense.configuration.ConfigurationManager;
-import org.md2k.motionsense.permission.ActivityPermission;
-import org.md2k.motionsense.permission.Permission;
-import org.md2k.motionsense.plot.ActivityPlotChoice;
+import rx.Observable;
+import rx.functions.Func1;
 
-public class MyMCerebrumInit extends MCerebrumInfo {
+public class RetryWithDelay implements
+        Func1<Observable<? extends Throwable>, Observable<?>> {
+
+    private final int retryDelayMillis;
+
+    public RetryWithDelay(final int retryDelayMillis) {
+        this.retryDelayMillis = retryDelayMillis;
+    }
+
     @Override
-    public void update(final Context context) {
-        MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
-        MCerebrum.setBackgroundService(context, ServiceMotionSense.class);
-        MCerebrum.setConfigureActivity(context, ActivitySettings.class);
-        MCerebrum.setPermissionActivity(context, ActivityPermission.class);
-        MCerebrum.setConfigured(context, ConfigurationManager.isConfigured());
-        MCerebrum.setConfigureExact(context, ConfigurationManager.isEqualDefault());
-        if(!Permission.hasPermission(context)){
-            Intent intent = new Intent(context, ActivityPermission.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        }
+    public Observable<?> call(Observable<? extends Throwable> attempts) {
+        return attempts
+                .flatMap(new Func1<Throwable, Observable<?>>() {
+                    @Override
+                    public Observable<?> call(Throwable throwable) {
+//                        if (++retryCount < maxRetries) {
+                        // When this Observable calls onNext, the original
+                        // Observable will be retried (i.e. re-subscribed).
+                        return Observable.timer(retryDelayMillis,
+                                TimeUnit.MILLISECONDS);
+                        //                      }
+
+                        // Max retries hit. Just pass the error along.
+                        //                      return Observable.error(throwable);
+                    }
+                });
     }
 }

@@ -12,10 +12,13 @@ import android.widget.ListView;
 
 import org.md2k.datakitapi.source.datasource.DataSource;
 import org.md2k.datakitapi.source.datasource.DataSourceBuilder;
+import org.md2k.datakitapi.source.datasource.DataSourceType;
 import org.md2k.datakitapi.source.platform.Platform;
 import org.md2k.datakitapi.source.platform.PlatformBuilder;
 import org.md2k.motionsense.R;
-import org.md2k.motionsense.device.DeviceManager;
+import org.md2k.motionsense.configuration.ConfigurationManager;
+
+import java.util.ArrayList;
 
 /**
  * Copyright (c) 2015, The University of Memphis, MD2K Center
@@ -44,7 +47,6 @@ import org.md2k.motionsense.device.DeviceManager;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 public class PrefsFragmentPlot extends PreferenceFragment {
-    DeviceManager deviceManager;
 /*
     Preference.OnPreferenceChangeListener onPreferenceChangeListener = new Preference.OnPreferenceChangeListener() {
         @Override
@@ -59,7 +61,6 @@ public class PrefsFragmentPlot extends PreferenceFragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        deviceManager =new DeviceManager();
         addPreferencesFromResource(R.xml.pref_plot_choice);
         addPreferenceScreenSensors();
     }
@@ -75,7 +76,7 @@ public class PrefsFragmentPlot extends PreferenceFragment {
     }
 
 
-    private Preference createPreference(String dataSourceType, String dataSourceId, String platformId) {
+    private Preference createPreference(String dataSourceType, String dataSourceId, String platformType, String platformId) {
 
         Preference preference = new Preference(getActivity());
         preference.setKey(dataSourceType);
@@ -85,34 +86,33 @@ public class PrefsFragmentPlot extends PreferenceFragment {
         if(dataSourceId!=null) title+=" ("+dataSourceId+")";
         preference.setTitle(title);
         preference.setSummary(platformId);
-        preference.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
-            @Override
-            public boolean onPreferenceClick(Preference preference) {
-                Intent intent=new Intent(getActivity(), ActivityPlot.class);
-                Platform p = new PlatformBuilder().setId(preference.getSummary().toString()).build();
-                DataSource d = new DataSourceBuilder().setType(preference.getKey()).setPlatform(p).build();
-                Bundle bundle = new Bundle();
-                bundle.putParcelable(DataSource.class.getSimpleName(), d);
-                intent.putExtras(bundle);
-                startActivity(intent);
-                return false;
-            }
+        preference.setOnPreferenceClickListener(preference1 -> {
+            Intent intent=new Intent(getActivity(), ActivityPlot.class);
+            Platform p = new PlatformBuilder().setId(platformId).setType(platformType).build();
+            DataSource d = new DataSourceBuilder().setType(dataSourceType).setId(dataSourceId).setPlatform(p).build();
+            Bundle bundle = new Bundle();
+            bundle.putParcelable(DataSource.class.getSimpleName(), d);
+            intent.putExtras(bundle);
+            startActivity(intent);
+            return false;
         });
         return preference;
     }
 
     protected void addPreferenceScreenSensors() {
-        String dataSourceType, platformId, dataSourceId;
+        String dataSourceType, platformId, dataSourceId, platformType;
         PreferenceCategory preferenceCategory = (PreferenceCategory) findPreference("dataSourceType");
         preferenceCategory.removeAll();
-        for (int i = 0; i < deviceManager.size(); i++) {
-            for (org.md2k.motionsense.device.sensor.Sensor sensor : deviceManager.get(i).getSensors().values()) {
-                platformId=deviceManager.get(i).getId();
-                dataSourceType=sensor.getDataSource().getType();
-                dataSourceId = sensor.getDataSource().getId();
-                Preference preference = createPreference(dataSourceType, dataSourceId, platformId);
+        ArrayList<DataSource> dataSources = ConfigurationManager.read(getActivity());
+        for (int i = 0; i < dataSources.size(); i++) {
+                platformId=dataSources.get(i).getPlatform().getId();
+            platformType=dataSources.get(i).getPlatform().getType();
+                dataSourceType=dataSources.get(i).getType();
+                dataSourceId = dataSources.get(i).getId();
+                if(dataSourceType.equals(DataSourceType.RAW)) continue;
+                if(dataSourceType.equals(DataSourceType.DATA_QUALITY)) continue;
+                Preference preference = createPreference(dataSourceType, dataSourceId, platformType, platformId);
                 preferenceCategory.addPreference(preference);
-            }
         }
     }
 }

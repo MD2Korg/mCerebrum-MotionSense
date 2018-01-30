@@ -1,4 +1,4 @@
-version = '2.0.11'
+version = '2.0.13'
 apply from: 'versioning.gradle'
 
 apply plugin: 'com.android.application'
@@ -48,6 +48,8 @@ android {
                     output.outputFile = new File(output.outputFile.parent, output.outputFile.name.replace("-release", "${variant.versionName}"))
                 }
             }
+            // Disable fabric build ID generation for debug builds
+            ext.enableCrashlytics = false
         }
     }
     compileOptions {
@@ -61,13 +63,13 @@ dependencies {
     compile project(':datakitapi')
     compile project(':core')
     compile project(':commons')
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
     testCompile 'junit:junit:4.12'
-    compile 'pl.charmas.android:android-reactive-location:0.10@aar'
     compile 'com.android.support:appcompat-v7:25.3.1'
-    compile 'com.google.android.gms:play-services-location:10.0.1'
+    compile 'com.google.android.gms:play-services-location:11.8.0'
     compile('com.crashlytics.sdk.android:crashlytics:2.6.2@aar') {
-        transitive = true;
+        transitive = true
     }
-    compile "com.polidea.rxandroidble:rxandroidble:1.4.1"
+    compile "com.polidea.rxandroidble:rxandroidble:1.4.3"
     compile 'com.github.PhilJay:MPAndroidChart:v3.0.2'
 }

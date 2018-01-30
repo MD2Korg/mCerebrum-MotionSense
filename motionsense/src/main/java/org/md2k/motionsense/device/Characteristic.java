@@ -1,4 +1,4 @@
-package org.md2k.motionsense;
+package org.md2k.motionsense.device;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,29 +26,50 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import android.content.Context;
-import android.content.Intent;
+import com.polidea.rxandroidble.RxBleConnection;
 
-import org.md2k.mcerebrum.core.access.MCerebrum;
-import org.md2k.mcerebrum.core.access.MCerebrumInfo;
-import org.md2k.motionsense.configuration.ConfigurationManager;
-import org.md2k.motionsense.permission.ActivityPermission;
-import org.md2k.motionsense.permission.Permission;
-import org.md2k.motionsense.plot.ActivityPlotChoice;
+import org.md2k.datakitapi.time.DateTime;
+import org.md2k.motionsense.Data;
 
-public class MyMCerebrumInit extends MCerebrumInfo {
-    @Override
-    public void update(final Context context) {
-        MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
-        MCerebrum.setBackgroundService(context, ServiceMotionSense.class);
-        MCerebrum.setConfigureActivity(context, ActivitySettings.class);
-        MCerebrum.setPermissionActivity(context, ActivityPermission.class);
-        MCerebrum.setConfigured(context, ConfigurationManager.isConfigured());
-        MCerebrum.setConfigureExact(context, ConfigurationManager.isEqualDefault());
-        if(!Permission.hasPermission(context)){
-            Intent intent = new Intent(context, ActivityPermission.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        }
+import java.util.ArrayList;
+
+import rx.Observable;
+
+public abstract class Characteristic {
+    protected long lastTimestamp;
+    protected int lastSequence;
+    private String id;
+    protected double frequency;
+    private String name;
+
+    public Characteristic(String id, String name, double frequency) {
+        this.id = id;
+        this.frequency = frequency;
+        this.name=name;
     }
+
+    public double getFrequency() {
+        return frequency;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    abstract public Observable<Data> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors);
+
+    public String getId() {
+        return id;
+    }
+
+    protected long correctTimeStamp(int curSequence, int maxLimit) {
+        long time;
+        long curTime = DateTime.getDateTime();
+        int diff = (curSequence - lastSequence + maxLimit) % maxLimit;
+        time = (long) (lastTimestamp + (1000.0*diff)/frequency);
+        if (curTime < time || curTime - time > 5000)
+            time = curTime;
+        return time;
+    }
+
 }

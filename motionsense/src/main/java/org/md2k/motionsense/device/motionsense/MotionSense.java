@@ -1,4 +1,4 @@
-package org.md2k.motionsense;
+package org.md2k.motionsense.device.motionsense;
 /*
  * Copyright (c) 2016, The University of Memphis, MD2K Center
  * - Syed Monowar Hossain <monowar.hossain@gmail.com>
@@ -26,29 +26,39 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import android.content.Context;
-import android.content.Intent;
+import com.polidea.rxandroidble.RxBleConnection;
 
-import org.md2k.mcerebrum.core.access.MCerebrum;
-import org.md2k.mcerebrum.core.access.MCerebrumInfo;
-import org.md2k.motionsense.configuration.ConfigurationManager;
-import org.md2k.motionsense.permission.ActivityPermission;
-import org.md2k.motionsense.permission.Permission;
-import org.md2k.motionsense.plot.ActivityPlotChoice;
+import org.md2k.motionsense.device.Characteristic;
+import org.md2k.motionsense.Data;
+import org.md2k.motionsense.device.Device;
+import org.md2k.motionsense.device.Sensor;
 
-public class MyMCerebrumInit extends MCerebrumInfo {
+import java.util.ArrayList;
+
+import rx.Observable;
+
+public class MotionSense extends Device {
+
+    private static final String DEVICE_NAME = "EETech_Motion";
+    public static boolean is(String name, String serviceId){
+        return DEVICE_NAME.equals(name) && UUID.equals(serviceId);
+    }
+
+    public MotionSense(String deviceId) {
+        super(deviceId);
+    }
+
     @Override
-    public void update(final Context context) {
-        MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
-        MCerebrum.setBackgroundService(context, ServiceMotionSense.class);
-        MCerebrum.setConfigureActivity(context, ActivitySettings.class);
-        MCerebrum.setPermissionActivity(context, ActivityPermission.class);
-        MCerebrum.setConfigured(context, ConfigurationManager.isConfigured());
-        MCerebrum.setConfigureExact(context, ConfigurationManager.isEqualDefault());
-        if(!Permission.hasPermission(context)){
-            Intent intent = new Intent(context, ActivityPermission.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        }
+    protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection) {
+        ArrayList<Observable<Data>> list=new ArrayList<>();
+        Characteristic cAcl=new CharacteristicAcl();
+        Characteristic cBat = new CharacteristicBattery();
+        ArrayList<Sensor> sensorLed=getSensors(cAcl, sensors);
+        ArrayList<Sensor> sensorBat=getSensors(cBat, sensors);
+
+
+        if(sensorLed!=null) list.add(cAcl.getObservable(rxBleConnection, sensorLed));
+        if(sensorBat!=null) list.add(cBat.getObservable(rxBleConnection, sensorBat));
+        return Observable.merge(list);
     }
 }
