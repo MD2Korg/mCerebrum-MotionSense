@@ -71,25 +71,26 @@ public class CharacteristicLed extends Characteristic {
                     ArrayList<Data> data = new ArrayList<>();
                     int curSeq = (int) TranslateLed.getSequenceNumber(bytes)[0];
                     long curTime = correctTimeStamp(curSeq,1024);
-                    DataType d = new DataTypeDoubleArray(curTime, TranslateLed.getAccelerometer(bytes));
-                    if (listSensor.containsKey(DataSourceType.ACCELEROMETER))
+                    if (listSensor.containsKey(DataSourceType.ACCELEROMETER)) {
+                        DataType d = new DataTypeDoubleArray(curTime, TranslateLed.getAccelerometer(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.ACCELEROMETER), d));
+                    }
                     if (listSensor.containsKey(DataSourceType.QUATERNION)) {
-                        d = new DataTypeDoubleArray(curTime, TranslateLed.getQuaternion(bytes));
+                        DataType d = new DataTypeDoubleArray(curTime, TranslateLed.getQuaternion(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.QUATERNION), d));
                     }
 
-                    d = new DataTypeDoubleArray(curTime, TranslateLed.getLED(bytes));
-                    if (listSensor.containsKey(DataSourceType.LED))
+                    if (listSensor.containsKey(DataSourceType.LED)) {
+                        DataType d = new DataTypeDoubleArray(curTime, TranslateLed.getLED(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.LED), d));
-
+                    }
                     if (listSensor.containsKey(DataSourceType.SEQUENCE_NUMBER + getName())) {
-                        d = new DataTypeDoubleArray(curTime, TranslateLed.getSequenceNumber(bytes));
+                        DataType d = new DataTypeDoubleArray(curTime, TranslateLed.getSequenceNumber(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.SEQUENCE_NUMBER + getName()), d));
                     }
 
                     if (listSensor.containsKey(DataSourceType.RAW + getName())) {
-                        d = new DataTypeDoubleArray(curTime, TranslateLed.getRaw(bytes));
+                        DataType d = new DataTypeDoubleArray(curTime, TranslateLed.getRaw(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.RAW + getName()), d));
                     }
                     lastSequence = curSeq;

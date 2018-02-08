@@ -12,6 +12,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.util.SparseArray;
 
+
 import org.md2k.datakitapi.datatype.DataType;
 import org.md2k.datakitapi.source.METADATA;
 import org.md2k.datakitapi.source.datasource.DataSource;
@@ -167,20 +168,12 @@ public class ServiceMotionSense extends Service {
                     @Override
                     public void onCompleted() {
                         Log.e("abc","Service -> onCompleted()");
-                        Intent intent = new Intent(ServiceMotionSense.this, ActivityError.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        intent.putExtra("error", "service: onCompleted");
-                        ServiceMotionSense.this.startActivity(intent);
                         unsubscribe();
                         stopSelf();
                     }
 
                     @Override
                     public void onError(Throwable e) {
-                        Intent intent = new Intent(ServiceMotionSense.this, ActivityError.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        intent.putExtra("error", "service:" +e.toString());
-                        ServiceMotionSense.this.startActivity(intent);
                         Log.e("abc","Service onError()... e="+e.toString()+" ");
                         unsubscribe();
                         stopSelf();

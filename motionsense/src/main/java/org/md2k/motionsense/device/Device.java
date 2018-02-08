@@ -55,12 +55,10 @@ public abstract class Device {
     protected ArrayList<Sensor> sensors;
     private Subscription subscriptionConnect;
     private Subscription subscriptionRetryConnect;
-    private boolean isConnected;
 
     protected Device(String deviceId) {
         this.deviceId = deviceId;
         sensors = new ArrayList<>();
-        isConnected = false;
     }
 
     String getDeviceId() {

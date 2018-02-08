@@ -72,23 +72,24 @@ public class CharacteristicAcl extends Characteristic {
                     ArrayList<Data> data = new ArrayList<>();
                     int curSeq = (int) TranslateAcl.getSequenceNumber(bytes)[0];
                     long curTime = correctTimeStamp(curSeq,65636);
-                    DataType d = new DataTypeDoubleArray(curTime, TranslateAcl.getAccelerometer(bytes));
-                    if (listSensor.containsKey(DataSourceType.ACCELEROMETER))
+                    if (listSensor.containsKey(DataSourceType.ACCELEROMETER)) {
+                        DataType d = new DataTypeDoubleArray(curTime, TranslateAcl.getAccelerometer(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.ACCELEROMETER), d));
+                    }
                     if (listSensor.containsKey(DataSourceType.GYROSCOPE)) {
-                        d = new DataTypeDoubleArray((long) (curTime - 1000.0 / (2.0 * frequency)), TranslateAcl.getGyroscope1(bytes));
+                        DataType d = new DataTypeDoubleArray((long) (curTime - 1000.0 / (2.0 * frequency)), TranslateAcl.getGyroscope1(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.GYROSCOPE), d));
                         d = new DataTypeDoubleArray(curTime, TranslateAcl.getGyroscope2(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.GYROSCOPE), d));
                     }
 
                     if (listSensor.containsKey(DataSourceType.SEQUENCE_NUMBER + getName())) {
-                        d = new DataTypeDoubleArray(curTime, TranslateAcl.getSequenceNumber(bytes));
+                        DataType d = new DataTypeDoubleArray(curTime, TranslateAcl.getSequenceNumber(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.SEQUENCE_NUMBER + getName()), d));
                     }
 
                     if (listSensor.containsKey(DataSourceType.RAW + getName())) {
-                        d = new DataTypeDoubleArray(curTime, TranslateAcl.getRaw(bytes));
+                        DataType d = new DataTypeDoubleArray(curTime, TranslateAcl.getRaw(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.RAW + getName()), d));
                     }
                     lastSequence = curSeq;

@@ -35,9 +35,7 @@ class TranslateLed {
         return sample;
     }
     private static double convertQuaternionToSI(double x){
-        x-=32768;
-        x=x/6000;
-        return x;
+        return (2.0*x)/(65535.0) - 1;
     }
     static double[] getQuaternion(byte[] bytes) {
         double[] sample = new double[3];
