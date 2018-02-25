@@ -1,5 +1,7 @@
 package org.md2k.motionsense.device.data_quality;
 
+
+
 import org.md2k.mcerebrum.core.data_format.DATA_QUALITY;
 
 /*
@@ -29,7 +31,7 @@ import org.md2k.mcerebrum.core.data_format.DATA_QUALITY;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 public class DataQualityAccelerometer extends DataQuality{
-    private final static float MAGNITUDE_VARIANCE_THRESHOLD = (float) 0.0025;   //this threshold comes from the data we collect by placing the wrist sensor on table. It compares with the wrist accelerometer on-body from participant #11 (smoking pilot study)
+    private final static float MAGNITUDE_VARIANCE_THRESHOLD = (float) 0.005;   //this threshold comes from the data we collect by placing the wrist sensor on table. It compares with the wrist accelerometer on-body from participant #11 (smoking pilot study)
 
 
     public synchronized int getStatus() {
@@ -71,7 +73,6 @@ public class DataQualityAccelerometer extends DataQuality{
         if (len_x == 0) return DATA_QUALITY.BAND_OFF;
 
         double sd =getStdDev(x);
-
         if (sd < MAGNITUDE_VARIANCE_THRESHOLD)
             return DATA_QUALITY.NOT_WORN;
 

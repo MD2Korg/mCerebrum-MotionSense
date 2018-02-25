@@ -42,53 +42,60 @@ import rx.Observable;
 public class DataQualityManager {
     private HashMap<String, DataQuality> dataQualityHashMap;
     private HashMap<String, Sensor> sensorHashMap;
-    public DataQualityManager(){
-        dataQualityHashMap=new HashMap<>();
-        sensorHashMap=new HashMap<>();
+
+    public DataQualityManager() {
+        dataQualityHashMap = new HashMap<>();
+        sensorHashMap = new HashMap<>();
     }
-    public Observable<Data> getObservable(){
-        ArrayList<Observable<Data>> observables=new ArrayList<>();
+
+    public Observable<Data> getObservable() {
+        ArrayList<Observable<Data>> observables = new ArrayList<>();
         for (Map.Entry<String, DataQuality> entry : dataQualityHashMap.entrySet()) {
             String key = entry.getKey();
             observables.add(entry.getValue().start(sensorHashMap.get(key)));
         }
         return Observable.merge(observables);
     }
-    public void addSensor(Sensor sensor){
-        if(!isValidSensor(sensor)) return;
-        String name= sensor.getDeviceType()+sensor.getDeviceId()+sensor.getDataSourceId();
 
-        if(!dataQualityHashMap.containsKey(name)){
+    public void addSensor(Sensor sensor) {
+        if (!isValidSensor(sensor)) return;
+        String name = sensor.getDeviceType() + sensor.getDeviceId() + sensor.getDataSourceId();
+
+        if (!dataQualityHashMap.containsKey(name)) {
             dataQualityHashMap.put(name, getDataQuality(sensor));
             sensorHashMap.put(name, sensor);
         }
     }
-    public void addData(Data data){
-        String name= data.getSensor().getDeviceType()+data.getSensor().getDeviceId()+data.getSensor().getDataSourceType();
-        if(!dataQualityHashMap.containsKey(name)) return;
+
+    public void addData(Data data) {
+        String name = data.getSensor().getDeviceType() + data.getSensor().getDeviceId() + data.getSensor().getDataSourceType();
+        if (!dataQualityHashMap.containsKey(name)) return;
         dataQualityHashMap.get(name).add((DataTypeDoubleArray) data.getDataType());
     }
-    private DataQuality getDataQuality(Sensor sensor){
-        switch(sensor.getDataSourceId()){
+
+    private DataQuality getDataQuality(Sensor sensor) {
+        switch (sensor.getDataSourceId()) {
             case DataSourceType.ACCELEROMETER:
                 return new DataQualityAccelerometer();
             case DataSourceType.LED:
                 return new DataQualityLed();
-                default:
-                    return null;
+            default:
+                return null;
         }
     }
-    private boolean isValidSensor(Sensor sensor){
-        if(sensor.getDataSourceId()==null || sensor.getDataSourceType()==null || sensor.getDeviceType()==null || sensor.getDeviceId()==null) return false;
-        if(!sensor.getDataSourceType().equals(DataSourceType.DATA_QUALITY)) return false;
+
+    private boolean isValidSensor(Sensor sensor) {
+        if (sensor.getDataSourceId() == null || sensor.getDataSourceType() == null || sensor.getDeviceType() == null || sensor.getDeviceId() == null)
+            return false;
+        if (!sensor.getDataSourceType().equals(DataSourceType.DATA_QUALITY)) return false;
         return !(!sensor.getDataSourceId().equals(DataSourceType.ACCELEROMETER) && !sensor.getDataSourceId().equals(DataSourceType.LED));
     }
 
     public DataType getSummary(Data data) {
-        if(!isValidSensor(data.getSensor())) return null;
-        String name= data.getSensor().getDeviceType()+data.getSensor().getDeviceId()+data.getSensor().getDataSourceId();
+        if (!isValidSensor(data.getSensor())) return null;
+        String name = data.getSensor().getDeviceType() + data.getSensor().getDeviceId() + data.getSensor().getDataSourceId();
 
-        if(!dataQualityHashMap.containsKey(name)) return null;
+        if (!dataQualityHashMap.containsKey(name)) return null;
         return dataQualityHashMap.get(name).getSummary((DataTypeInt) data.getDataType());
 
     }
