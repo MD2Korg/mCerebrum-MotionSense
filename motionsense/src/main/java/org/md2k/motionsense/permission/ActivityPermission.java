@@ -57,7 +57,10 @@ public class ActivityPermission extends AppCompatActivity {
                 break;
             case SUCCESS:
                 MCerebrum.setPermission(ActivityPermission.this, true);
-                setResult(Activity.RESULT_OK);
+                Intent intent=getIntent();
+                intent.putExtra("result",true);
+                setResult(Activity.RESULT_OK,intent);
+
             default:
         }
         finish();
