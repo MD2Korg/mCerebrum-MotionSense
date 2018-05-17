@@ -1,3 +1,30 @@
+/*
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package org.md2k.motionsense;
 
 import android.content.BroadcastReceiver;
@@ -42,44 +69,45 @@ import java.util.Locale;
 import io.fabric.sdk.android.Fabric;
 
 /**
- * Copyright (c) 2015, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
- * All rights reserved.
- * <p/>
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * <p/>
- * * Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- * <p/>
- * * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- * <p/>
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * <code>ActivityMain</code> is the execution start of the application.
  */
-
 public class ActivityMain extends AppCompatActivity {
+    /** Used to signify that this activity should start normally. <p>Set to 0.</p> */
     public static final int OPERATION_RUN = 0;
+
+    /** Used to signify this activity should start the settings view. <p>Set to 1.</p> */
     public static final int OPERATION_SETTINGS = 1;
+
+    /** Used to signify this activity should start the plot view. <p>Set to 2.</p> */
     public static final int OPERATION_PLOT = 2;
+
+    /** Used to signify this activity should start in the foreground. <p>Set to 5.</p> */
     public static final int OPERATION_START_FOREGROUND = 5;
+
+    /** Used to signify this activity should start in the background. <p>Set to 3.</p> */
     public static final int OPERATION_START_BACKGROUND = 3;
+
+    /** Used to signify this activity should stop in the background. <p>Set to 4.</p> */
     public static final int OPERATION_STOP_BACKGROUND = 4;
+
+    /** Set to "operation" */
     public static final String OPERATION = "operation";
 
+    /** Request code for permission request intents. */
+    public static final int REQUEST_CODE = 1111;
+
+    /** Delay in milliseconds. */
+    public static final int DELAY_MILLIS = 1000;
 
     int operation;
 
+    /**
+     * Calls <code>super</code>, <code>loadCrashlytics()</code>, <code>readIntent()</code>, and
+     * checks for permissions on this activity's creation.
+     *
+     * @param savedInstanceState This activity's previous state, is null if this activity has never
+     *                           existed.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -88,19 +116,30 @@ public class ActivityMain extends AppCompatActivity {
 
         if (!Permission.hasPermission(ActivityMain.this)) {
             Intent intent = new Intent(this, ActivityPermission.class);
-            startActivityForResult(intent, 1111);
+            startActivityForResult(intent, REQUEST_CODE);
         } else
             load();
     }
 
+    /**
+     * Sets the operation mode based on whether the intent has extras.
+     */
     void readIntent() {
         if (getIntent().getExtras() != null) {
             operation = getIntent().getExtras().getInt(OPERATION, 0);
         } else operation = 0;
     }
+
+    /**
+     * Handles callback results for <code>checkRequirement()</code>.
+     *
+     * @param requestCode The code sent with the request.
+     * @param resultCode The code returned with the result, used for request/result verification
+     * @param data Android intent
+     */
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == 1111) {
+        if (requestCode == REQUEST_CODE) {
             if (resultCode != RESULT_OK)
                 finish();
             else
@@ -108,6 +147,9 @@ public class ActivityMain extends AppCompatActivity {
         }
     }
 
+    /**
+     * Starts the UI
+     */
     void initializeUI() {
         setContentView(R.layout.activity_main);
         if (getSupportActionBar() != null)
@@ -128,30 +170,47 @@ public class ActivityMain extends AppCompatActivity {
     private HashMap<String, TextView> hashMapData = new HashMap<>();
     private Handler mHandler = new Handler();
     private Runnable runnable = new Runnable() {
+        /**
+         * Creates a new <code>Runnable()</code> object. This object creates a start button when run.
+         */
         @Override
         public void run() {
             {
                 long time = AppInfo.serviceRunningTime(ActivityMain.this, ServiceMotionSense.class.getName());
                 if (time < 0) {
                     ((Button) findViewById(R.id.button_app_status)).setText("START");
-                    findViewById(R.id.button_app_status).setBackground(ContextCompat.getDrawable(ActivityMain.this, R.drawable.button_status_off));
+                    findViewById(R.id.button_app_status)
+                            .setBackground(ContextCompat
+                                    .getDrawable(ActivityMain.this, R.drawable.button_status_off));
 
                 } else {
-                    findViewById(R.id.button_app_status).setBackground(ContextCompat.getDrawable(ActivityMain.this, R.drawable.button_status_on));
+                    findViewById(R.id.button_app_status)
+                            .setBackground(ContextCompat.
+                                    getDrawable(ActivityMain.this, R.drawable.button_status_on));
                     ((Button) findViewById(R.id.button_app_status)).setText(DateTime.convertTimestampToTimeStr(time));
 
                 }
-                mHandler.postDelayed(this, 1000);
+                mHandler.postDelayed(this, DELAY_MILLIS);
             }
         }
     };
     private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
+        /**
+         * Creates a new broadcast receiver that updates the table widget when it receives new data.
+         * @param context Android context
+         * @param intent Received intent.
+         */
         @Override
         public void onReceive(Context context, Intent intent) {
             updateTable(intent);
         }
     };
 
+    /**
+     * Creates a <code>TableRow</code> widget using default settings.
+     *
+     * @return the <code>TableRow</code> widget
+     */
     private TableRow createDefaultRow() {
         TableRow row = new TableRow(this);
         TextView tvSensor = new TextView(this);
@@ -177,6 +236,11 @@ public class ActivityMain extends AppCompatActivity {
         return row;
     }
 
+    /**
+     * Returns the id of the given <code>DataSource</code>.
+     * @param dataSource Given <code>DataSource</code>
+     * @return The id of the given <code>DataSource</code>.
+     */
     private String getId(DataSource dataSource) {
         String id = dataSource.getType();
         if (dataSource.getId() != null) id += dataSource.getId();
@@ -185,6 +249,11 @@ public class ActivityMain extends AppCompatActivity {
         return id;
     }
 
+    /**
+     * Returns the name of the given <code>DataSource</code>.
+     * @param dataSource Given <code>DataSource</code>
+     * @return The name of the given <code>DataSource</code>.
+     */
     private String getName(DataSource dataSource) {
         String name;
         if (dataSource.getId() != null) {
@@ -194,6 +263,9 @@ public class ActivityMain extends AppCompatActivity {
         return name;
     }
 
+    /**
+     *  Creates a table widget that displays the phone sensor data sources.
+     */
     private void prepareTable() {
         TableLayout ll = (TableLayout) findViewById(R.id.tableLayout);
         ll.removeAllViews();
@@ -225,26 +297,32 @@ public class ActivityMain extends AppCompatActivity {
         }
     }
 
+    /**
+     * Updates the table widget with refreshed data from the sensors.
+     *
+     * @param intent Android intent
+     */
     private void updateTable(Intent intent) {
         try {
             DataSource dataSource = intent.getParcelableExtra(DataSource.class.getSimpleName());
             Summary summary=intent.getParcelableExtra(Summary.class.getSimpleName());
             DataType dataType = intent.getParcelableExtra(DataType.class.getSimpleName());
-            String id=getId(dataSource);
+            String id = getId(dataSource);
             if (hashMapData.containsKey(id + "_count"))
                 hashMapData.get(id + "_count").setText(String.valueOf(summary.getCount()));
-
             if (hashMapData.containsKey(id + "_freq"))
-                hashMapData.get(id + "_freq").setText(String.format(Locale.getDefault(), "%.1f", summary.getFrequency()));
-
-            String sampleStr="";
+                hashMapData.get(id + "_freq").setText(String.format(Locale.getDefault(),
+                        "%.1f", summary.getFrequency()));
+            String sampleStr = "";
             if (dataType instanceof DataTypeFloat) {
                 sampleStr = String.format(Locale.getDefault(), "%.1f", ((DataTypeFloat) dataType).getSample());
             } else if (dataType instanceof DataTypeFloatArray) {
                 float[] sample = ((DataTypeFloatArray) dataType).getSample();
                 for (int i = 0; i < sample.length; i++) {
-                    if (i != 0) sampleStr += ",";
-                    if (i % 3 == 0 && i != 0) sampleStr += "\n";
+                    if (i != 0)
+                        sampleStr += ",";
+                    if (i % 3 == 0 && i != 0)
+                        sampleStr += "\n";
                     sampleStr = sampleStr + String.format(Locale.getDefault(), "%.1f", sample[i]);
                 }
             } else if (dataType instanceof DataTypeDouble) {
@@ -252,8 +330,10 @@ public class ActivityMain extends AppCompatActivity {
             } else if (dataType instanceof DataTypeDoubleArray) {
                 double[] sample = ((DataTypeDoubleArray) dataType).getSample();
                 for (int i = 0; i < sample.length; i++) {
-                    if (i != 0) sampleStr += ",";
-                    if (i % 3 == 0 && i != 0) sampleStr += "\n";
+                    if (i != 0)
+                        sampleStr += ",";
+                    if (i % 3 == 0 && i != 0)
+                        sampleStr += "\n";
                     sampleStr = sampleStr + String.format(Locale.getDefault(), "%.1f", sample[i]);
                 }
             } else if (dataType instanceof DataTypeInt) {
@@ -261,17 +341,22 @@ public class ActivityMain extends AppCompatActivity {
             } else if (dataType instanceof DataTypeIntArray) {
                 int[] sample = ((DataTypeIntArray) dataType).getSample();
                 for (int i = 0; i < sample.length; i++) {
-                    if (i != 0) sampleStr += ",";
-                    if (i % 3 == 0 && i != 0) sampleStr += "\n";
+                    if (i != 0)
+                        sampleStr += ",";
+                    if (i % 3 == 0 && i != 0)
+                        sampleStr += "\n";
                     sampleStr = sampleStr + String.format(Locale.getDefault(), "%d", sample[i]);
                 }
             }
             if (hashMapData.containsKey(id + "_sample"))
                 hashMapData.get(id + "_sample").setText(sampleStr);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
+    /**
+     * Registers receivers, prepares a new table widget and adds the relevant <code>runnable</code>
+     * methods to the message queue upon resuming the activity.
+     */
     @Override
     public void onResume() {
         initializeUI();
@@ -281,6 +366,10 @@ public class ActivityMain extends AppCompatActivity {
         super.onResume();
     }
 
+    /**
+     * Removes <code>runnable</code> callbacks and unregisters <code>mMessageReciver</code> when the
+     * activity is paused.
+     */
     @Override
     public void onPause() {
         mHandler.removeCallbacks(runnable);
@@ -288,21 +377,37 @@ public class ActivityMain extends AppCompatActivity {
         super.onPause();
     }
 
+    /**
+     * Creates the options menu.
+     *
+     * <p>
+     *     Inflate the menu; this adds items to the action bar if it is present.
+     * </p>
+     *
+     * @param menu Android Menu object
+     * @return Always returns true.
+     */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_settings, menu);
         return true;
     }
 
+    /**
+     * Handles the selection of items on the action bar.
+     *
+     * <p>
+     *     Handle action bar item clicks here. The action bar will automatically handle clicks on
+     *     the Home/Up button, so long as you specify a parent activity in AndroidManifest.xml.
+     * </p>
+     *
+     * @param item Android MenuItem object
+     * @return <code>super.onOptionsItemSelected(item)</code>
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         Intent intent;
         switch (item.getItemId()) {
-            // Respond to the action bar's Up/Home button
             case android.R.id.home:
                 finish();
                 break;
@@ -317,6 +422,19 @@ public class ActivityMain extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
+
+    /**
+     * This method starts this activity in the given mode. It defaults to <code>OPERATION_RUN</code>.
+     * <p>
+     *     Available modes are:
+     *     <ul>
+     *         <li><code>OPERATION_START_BACKGROUND</code> - starts the service in the background</li>
+     *         <li><code>OPERATION_START_FOREGROUND</code> - starts the UI</li>
+     *         <li><code>OPERATION_STOP_BACKGROUND</code> - stops the service running in the background</li>
+     *         <li><code>OPERATION_SETTINGS</code> - starts the settings activity</li>
+     *     </ul>
+     * </p>
+     */
     void load() {
         Intent intent;
         switch (operation) {
@@ -349,10 +467,13 @@ public class ActivityMain extends AppCompatActivity {
                 finish();
                 break;
             default:
-//                Toasty.error(getApplicationContext(), "Invalid argument. Operation = " + operation, Toast.LENGTH_SHORT).show();
                 initializeUI();
         }
     }
+
+    /**
+     * Creates a new <code>Crashlytics</code> object.
+     */
     private void loadCrashlytics() {
 //        Fabric.with(this, new Crashlytics());
     }
