@@ -1,7 +1,6 @@
-package org.md2k.motionsense;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,22 +25,40 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense;
+
 import org.md2k.datakitapi.datatype.DataType;
 import org.md2k.motionsense.device.Sensor;
 
+/**
+ * Creates a <code>Data</code> object that holds 
+ */
 public class Data {
     private Sensor sensor;
     private DataType dataType;
 
+    /**
+     * Constructor
+     * @param sensor Sensor providing the data.
+     * @param dataType Type of data.
+     */
     public Data(Sensor sensor, DataType dataType) {
-        this.sensor=sensor;
+        this.sensor = sensor;
         this.dataType = dataType;
     }
 
+    /**
+     * Returns the sensor.
+     * @return The sensor.
+     */
     public Sensor getSensor() {
         return sensor;
     }
 
+    /**
+     * Returns the <code>DataType</code>.
+     * @return The <code>DataType</code>.
+     */
     public DataType getDataType() {
         return dataType;
     }
