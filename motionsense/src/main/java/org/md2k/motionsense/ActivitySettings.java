@@ -1,3 +1,30 @@
+/*
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package org.md2k.motionsense;
 
 import android.bluetooth.BluetoothAdapter;
@@ -14,35 +41,17 @@ import android.widget.Toast;
 import es.dmoral.toasty.Toasty;
 
 /**
- * Copyright (c) 2015, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
- * All rights reserved.
- * <p>
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * <p>
- * * Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- * <p>
- * * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- * <p>
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This class handles the settings activity for this application.
  */
-
 public class ActivitySettings extends AppCompatActivity {
     public static final String ACTION_LOCATION_CHANGED = "android.location.PROVIDERS_CHANGED";
 
+    /**
+     * Creates the settings activity for this application.
+     *
+     * @param savedInstanceState This activity's previous state, is null if this activity has never
+     *                           existed.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -61,6 +70,12 @@ public class ActivitySettings extends AppCompatActivity {
         }
     }
 
+    /**
+     * Handles menu item selection.
+     *
+     * @param item Android MenuItem
+     * @return true when the menu item selection actions are successful.
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -72,6 +87,11 @@ public class ActivitySettings extends AppCompatActivity {
     }
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        /**
+         * Handles bluetooth and location state changes.
+         * @param context Android context
+         * @param intent Received intent.
+         */
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
@@ -80,7 +100,8 @@ public class ActivitySettings extends AppCompatActivity {
                 switch (state) {
                     case BluetoothAdapter.STATE_OFF:
                     case BluetoothAdapter.STATE_TURNING_OFF:
-                        Toasty.error(ActivitySettings.this, "Bluetooth is off. Please turn on bluetooth", Toast.LENGTH_SHORT).show();
+                        Toasty.error(ActivitySettings.this,
+                                "Bluetooth is off. Please turn on bluetooth", Toast.LENGTH_SHORT).show();
                 }
             } else if (action.equals(ACTION_LOCATION_CHANGED)) {
                 LocationManager locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
@@ -92,9 +113,11 @@ public class ActivitySettings extends AppCompatActivity {
         }
     };
 
+    /**
+     * Unregisters the <code>BroadcastReceiver</code> when this activity is destroyed.
+     */
     public void onDestroy() {
         unregisterReceiver(mReceiver);
         super.onDestroy();
     }
-
 }
