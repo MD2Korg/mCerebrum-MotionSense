@@ -1,7 +1,6 @@
-package org.md2k.motionsense;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense;
+
 import android.content.Context;
 import android.content.Intent;
 
@@ -36,7 +37,15 @@ import org.md2k.motionsense.permission.ActivityPermission;
 import org.md2k.motionsense.permission.Permission;
 import org.md2k.motionsense.plot.ActivityPlotChoice;
 
+/**
+ * This class initializes the <code>MCerebrum</code> libraries for use with this application.
+ */
 public class MyMCerebrumInit extends MCerebrumInfo {
+    /**
+     * Updates variables in the <code>MCerebrum</code> core and common libraries.
+     *
+     * @param context Android context
+     */
     @Override
     public void update(final Context context) {
         MCerebrum.setReportActivity(context, ActivityPlotChoice.class);
