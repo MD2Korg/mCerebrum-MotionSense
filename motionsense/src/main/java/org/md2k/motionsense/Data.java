@@ -31,7 +31,7 @@ import org.md2k.datakitapi.datatype.DataType;
 import org.md2k.motionsense.device.Sensor;
 
 /**
- * Creates a <code>Data</code> object that holds 
+ * Creates a <code>Data</code> object that holds
  */
 public class Data {
     private Sensor sensor;
