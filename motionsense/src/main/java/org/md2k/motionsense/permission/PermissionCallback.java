@@ -1,7 +1,6 @@
-package org.md2k.motionsense.permission;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,11 @@ package org.md2k.motionsense.permission;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.permission;
+
+/**
+ * Callback interface for permission requests.
+ */
 public interface PermissionCallback {
     void OnResponse(boolean isGranted);
 }
