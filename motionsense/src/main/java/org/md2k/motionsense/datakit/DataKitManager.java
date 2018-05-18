@@ -40,8 +40,17 @@ import org.md2k.datakitapi.source.datasource.DataSourceClient;
 import rx.Observable;
 import rx.Subscriber;
 
+/**
+ * Manages the connection between this application and <code>DataKitAPI</code>.
+ */
 public class DataKitManager {
     private DataKitAPI dataKitAPI;
+
+    /**
+     * Connects <code>DataKitAPI</code>.
+     * @param context Android context
+     * @return An <code>Observable</code>
+     */
     public Observable<Boolean> connect(Context context){
         return Observable.create(subscriber -> {
             dataKitAPI=DataKitAPI.getInstance(context);
@@ -56,8 +65,14 @@ public class DataKitManager {
             }
         });
     }
+
+    /**
+     * Registers the given <code>DataSource</code> with <code>DataKitAPI</code>.
+     * @param dataSource <code>DataSource</code> to register.
+     * @return The resulting <code>DataSourceClient</code>.
+     */
     public DataSourceClient register(DataSource dataSource){
-        DataSourceBuilder dataSourceBuilder=new DataSourceBuilder(dataSource);
+        DataSourceBuilder dataSourceBuilder = new DataSourceBuilder(dataSource);
         try {
             return dataKitAPI.register(dataSourceBuilder);
         } catch (DataKitException e) {
@@ -66,6 +81,11 @@ public class DataKitManager {
 
     }
 
+    /**
+     * Inserts the given data into <code>DataKitAPI</code>.
+     * @param dataSourceClient <code>DataSourceClient</code> to insert.
+     * @param dataType Type of data to insert.
+     */
     public void insert(DataSourceClient dataSourceClient, DataType dataType) {
         try {
             if (dataType instanceof DataTypeDoubleArray)
@@ -77,15 +97,21 @@ public class DataKitManager {
         }
     }
 
+    /**
+     * Disconnects <code>DataKitAPI</code>.
+     */
     public void disconnect() {
         dataKitAPI.disconnect();
     }
 
+    /**
+     * Sets the summary for the given client.
+     * @param dataSourceClient <code>DataSourceClient</code> to summarize.
+     * @param dataType Type of data.
+     */
     public void setSummary(DataSourceClient dataSourceClient, DataType dataType) {
         try {
             dataKitAPI.setSummary(dataSourceClient, dataType);
-        } catch (DataKitException e) {
-            //e.printStackTrace();
-        }
+        } catch (DataKitException e) {}
     }
 }
