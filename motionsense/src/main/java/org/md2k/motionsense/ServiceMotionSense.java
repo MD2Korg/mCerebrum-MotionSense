@@ -1,3 +1,30 @@
+/*
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package org.md2k.motionsense;
 
 import android.app.Service;
@@ -38,34 +65,9 @@ import rx.schedulers.Schedulers;
 
 import static org.md2k.motionsense.ActivitySettings.ACTION_LOCATION_CHANGED;
 
-/*
- * Copyright (c) 2015, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
- * - Nazir Saleheen <nazir.saleheen@gmail.com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * * Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/**
+ * Manages the motion sense service.
  */
-
 public class ServiceMotionSense extends Service {
     public static final String INTENT_DATA = "INTENT_DATA";
     private DataKitManager dataKitManager;
@@ -74,13 +76,15 @@ public class ServiceMotionSense extends Service {
     SparseArray<Summary> summary;
     DataQualityManager dataQualityManager;
 
-
-
+    /**
+     * Logs the creation of the service, calls <code>loadListener()</code>, and subscribes an
+     * <code>Observable</code> to receive data from the motion sensor.
+     */
     @Override
     public void onCreate() {
         super.onCreate();
         Log.e("abc","Service: onCreate()...");
-        summary=new SparseArray<>();
+        summary = new SparseArray<>();
         ErrorNotify.removeNotification(ServiceMotionSense.this);
         loadListener();
 
@@ -118,13 +122,13 @@ public class ServiceMotionSense extends Service {
                         return res;
                     });
                 }).doOnUnsubscribe(() -> {
-                    if(dataKitManager!=null)
+                    if(dataKitManager != null)
                         dataKitManager.disconnect();
                 }).filter(x -> x)
                 .map(aBoolean -> {
                     ArrayList<DataSource> dataSources = ConfigurationManager.read(ServiceMotionSense.this);
                     deviceManager = new DeviceManager();
-                    dataQualityManager=new DataQualityManager();
+                    dataQualityManager = new DataQualityManager();
                     if (dataSources == null || dataSources.size() == 0) return false;
                     for (int i = 0; i < dataSources.size(); i++) {
                         DataSourceClient dataSourceClient = dataKitManager.register(dataSources.get(i));
@@ -151,20 +155,21 @@ public class ServiceMotionSense extends Service {
                     return Observable.merge(deviceManager.connect(ServiceMotionSense.this), dataQualityManager.getObservable());
                 })
                 .doOnUnsubscribe(() -> {
-                    if(deviceManager!=null)
+                    if(deviceManager != null)
                         deviceManager.disconnect();
                 })
                 .onBackpressureBuffer(1024, null, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
                 .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
                     Log.e("abc", "Service: error=" + throwable.toString());
-//                    if(throwable instanceof rx.exceptions.MissingBackpressureException || throwable instanceof CompositeException) {
-                    if(deviceManager!=null)
+                    if(deviceManager != null)
                     deviceManager.disconnect();
                         return Observable.just(null);
-  //                  }else return Observable.error(throwable);
                 }))
                 .observeOn(Schedulers.newThread())
                 .subscribe(new Observer<Data>() {
+                    /**
+                     * Logs the completion of the service, unsubscribes the listener, and stops itself.
+                     */
                     @Override
                     public void onCompleted() {
                         Log.e("abc","Service -> onCompleted()");
@@ -172,13 +177,20 @@ public class ServiceMotionSense extends Service {
                         stopSelf();
                     }
 
+                    /**
+                     * Logs the service's error, unsubscribes the listener, and stops itself.
+                     */
                     @Override
                     public void onError(Throwable e) {
-                        Log.e("abc","Service onError()... e="+e.toString()+" ");
+                        Log.e("abc","Service onError()... e=" + e.toString() + " ");
                         unsubscribe();
                         stopSelf();
                     }
 
+                    /**
+                     * Inserts the received data into <code>DataKit</code>.
+                     * @param data Data received
+                     */
                     @Override
                     public void onNext(Data data) {
                         dataKitManager.insert(data.getSensor().getDataSourceClient(), data.getDataType());
@@ -186,11 +198,10 @@ public class ServiceMotionSense extends Service {
                             dataKitManager.setSummary(data.getSensor().getDataSourceClient(), dataQualityManager.getSummary(data));
                         else
                             dataQualityManager.addData(data);
-
-                        Intent intent=new Intent(INTENT_DATA);
+                        Intent intent = new Intent(INTENT_DATA);
                         Summary s = summary.get(data.getSensor().getDataSourceClient().getDs_id());
-                        if(s==null){
-                            s=new Summary();
+                        if(s == null){
+                            s = new Summary();
                             summary.put(data.getSensor().getDataSourceClient().getDs_id(), s);
                         }
                         s.set();
@@ -202,6 +213,9 @@ public class ServiceMotionSense extends Service {
                 });
     }
 
+    /**
+     * Creates an intent filter and registers it to the receiver.
+     */
     void loadListener() {
         IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
@@ -209,26 +223,44 @@ public class ServiceMotionSense extends Service {
         registerReceiver(mReceiver, filter);
     }
 
+    /**
+     * Calls unsubscribe, unregisters the receiver, logs the event, and calls super.
+     */
     @Override
     public void onDestroy() {
         unsubscribe();
         try {
             unregisterReceiver(mReceiver);
-        }catch (Exception ignored){}
+        } catch (Exception ignored){}
+
         Log.e("abc","Service: onDestroy()...");
         super.onDestroy();
     }
+
+    /**
+     * Unsubscribes the observable.
+     */
     void unsubscribe(){
         if (subscription != null && !subscription.isUnsubscribed())
             subscription.unsubscribe();
-        subscription=null;
+        subscription = null;
     }
 
+    /**
+     * This method has not been implemented yet.
+     *
+     * @param intent Android intent
+     * @return
+     */
     @Override
     public IBinder onBind(Intent intent) {
         throw new UnsupportedOperationException("Not yet implemented");
     }
 
+    /**
+     * Creates a new broadcast receiver that receives the bluetooth and location state change intent.
+     * Upon receipt it unsubscribes the observable and stops itself.
+     */
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
