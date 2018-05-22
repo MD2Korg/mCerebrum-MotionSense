@@ -92,7 +92,7 @@ public class PrefsFragmentSettings extends PreferenceFragment {
     }
 
     /**
-     *
+     * Scans for available devices.
      */
     void scan() {
         RxBleClient rxBleClient = MyApplication.getRxBleClient(getActivity());
@@ -112,7 +112,7 @@ public class PrefsFragmentSettings extends PreferenceFragment {
             }
 
                     /**
-                     *
+                     * Determines what do with the scanned devices.
                      * @param scanResult Result of the scan.
                      */
             @Override
@@ -144,6 +144,9 @@ public class PrefsFragmentSettings extends PreferenceFragment {
     }
 
 
+    /**
+     * Sets the settings category of configured devices.
+     */
     void setPreferenceScreenConfigured() {
         PreferenceCategory category = (PreferenceCategory) findPreference("key_device_configured");
         category.removeAll();
@@ -152,7 +155,8 @@ public class PrefsFragmentSettings extends PreferenceFragment {
             Preference preference = new Preference(getActivity());
             preference.setKey(platforms.get(i).getMetadata().get(METADATA.DEVICE_ID));
             preference.setTitle(platforms.get(i).getId());
-            preference.setSummary(platforms.get(i).getType() + " (" + platforms.get(i).getMetadata().get(METADATA.DEVICE_ID) + ")");
+            preference.setSummary(platforms.get(i).getType() + " (" + platforms.get(i).getMetadata()
+                    .get(METADATA.DEVICE_ID) + ")");
             if (platforms.get(i).getType().equals(PlatformType.MOTION_SENSE_HRV_PLUS))
                 preference.setIcon(R.drawable.ic_watch_plus);
             else if (platforms.get(i).getType().equals(PlatformType.MOTION_SENSE_HRV))
@@ -164,6 +168,11 @@ public class PrefsFragmentSettings extends PreferenceFragment {
         }
     }
 
+    /**
+     * Adds the given device to the list of available devices.
+     * @param type Type of device.
+     * @param deviceId Id of device.
+     */
     void addToPreferenceScreenAvailable(String type, String deviceId) {
         final PreferenceCategory category = (PreferenceCategory) findPreference("key_device_available");
         for (int i = 0; i < category.getPreferenceCount(); i++)
@@ -196,9 +205,11 @@ public class PrefsFragmentSettings extends PreferenceFragment {
         }
         listPreference.setOnPreferenceChangeListener((preference, newValue) -> {
             if (ConfigurationManager.isConfigured(newValue.toString(), preference.getKey()))
-                Toast.makeText(getActivity(), "Device: " + preference.getKey() + "and/or Placement:" + newValue.toString() + " already configured", Toast.LENGTH_LONG).show();
+                Toast.makeText(getActivity(), "Device: " + preference.getKey() + "and/or Placement:" +
+                        newValue.toString() + " already configured", Toast.LENGTH_LONG).show();
             else {
-                ConfigurationManager.addPlatform(getActivity(), preference.getSummary().toString(), newValue.toString(), preference.getKey());
+                ConfigurationManager.addPlatform(getActivity(), preference.getSummary().toString(),
+                        newValue.toString(), preference.getKey());
                 if(devices.containsKey(preference.getKey()))
                     BLEPair.pairDevice(getActivity(), devices.get(preference.getKey()));
                 setPreferenceScreenConfigured();
@@ -209,10 +220,15 @@ public class PrefsFragmentSettings extends PreferenceFragment {
         category.addPreference(listPreference);
     }
 
+    /**
+     * Creates a click listener for configured devices.
+     * @return An <code>OnPreferenceClickListener</code> for configured devices.
+     */
     private Preference.OnPreferenceClickListener preferenceListenerConfigured() {
         return preference -> {
             final String deviceId = preference.getKey();
-            Dialog.simple(getActivity(), "Delete Device", "Delete Device (" + preference.getTitle() + ")?", "Delete", "Cancel", value -> {
+            Dialog.simple(getActivity(), "Delete Device", "Delete Device (" +
+                    preference.getTitle() + ")?", "Delete", "Cancel", value -> {
                 if ("Delete".equals(value)) {
                     ConfigurationManager.deleteDevice(deviceId);
                     if(devices.containsKey(deviceId))
@@ -224,6 +240,15 @@ public class PrefsFragmentSettings extends PreferenceFragment {
         };
     }
 
+    /**
+     * Creates the settings view
+     *
+     * @param inflater Android LayoutInflater
+     * @param container Android ViewGroup
+     * @param savedInstanceState This activity's previous state, is null if this activity has never
+     *                           existed.
+     * @return The view this method created.
+     */
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -234,10 +259,14 @@ public class PrefsFragmentSettings extends PreferenceFragment {
         return v;
     }
 
+    /**
+     * Handles menu item selection.
+     * @param item Android MenuItem
+     * @return true when the menu item selection actions are successful.
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            // Respond to the action bar's Up/Home button
             case android.R.id.home:
                 getActivity().finish();
                 return true;
@@ -245,6 +274,9 @@ public class PrefsFragmentSettings extends PreferenceFragment {
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Unsubscribes the <code>scanSubscription</code> when the activity is paused.
+     */
     @Override
     public void onPause() {
         if (scanSubscription != null && !scanSubscription.isUnsubscribed())
