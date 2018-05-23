@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device.motionsense;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +25,17 @@ package org.md2k.motionsense.device.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device.motionsense;
+
+/**
+ * Translates battery data from bytes to doubles.
+ */
 class TranslateBattery {
+    /**
+     * Returns the raw data as a double array.
+     * @param bytes Data to convert to a double.
+     * @return The raw data as a double array.
+     */
     static double[] getBattery(byte[] bytes) {
         double[] sample = new double[1];
         sample[0] = bytes[0];
