@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device.motionsense;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense.device.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device.motionsense;
+
 import com.polidea.rxandroidble.RxBleConnection;
 
 import org.md2k.motionsense.device.Characteristic;
@@ -37,28 +38,48 @@ import java.util.ArrayList;
 
 import rx.Observable;
 
+/**
+ * Creates an object for the MotionSense hardware.
+ */
 public class MotionSense extends Device {
 
     private static final String DEVICE_NAME = "EETech_Motion";
+
+    /**
+     * Returns whether the given device is the expected device.
+     * @param name Name of the device.
+     * @param serviceId Service id of the device.
+     * @return Whether the given device is the expected device.
+     */
     public static boolean is(String name, String serviceId){
         return DEVICE_NAME.equals(name) && UUID.equals(serviceId);
     }
 
+    /**
+     * Constructor
+     * @param deviceId Id of the device.
+     */
     public MotionSense(String deviceId) {
         super(deviceId);
     }
 
+    /**
+     * Returns an <code>Observable</code> over the <code>Characteristic</code>s of the device.
+     * @param rxBleConnection The BLE connection handle.
+     * @return An <code>Observable</code> over the <code>Characteristic</code>s of the device.
+     */
     @Override
     protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection) {
-        ArrayList<Observable<Data>> list=new ArrayList<>();
-        Characteristic cAcl=new CharacteristicAcl();
+        ArrayList<Observable<Data>> list = new ArrayList<>();
+        Characteristic cAcl = new CharacteristicAcl();
         Characteristic cBat = new CharacteristicBattery();
-        ArrayList<Sensor> sensorLed=getSensors(cAcl, sensors);
-        ArrayList<Sensor> sensorBat=getSensors(cBat, sensors);
+        ArrayList<Sensor> sensorLed = getSensors(cAcl, sensors);
+        ArrayList<Sensor> sensorBat = getSensors(cBat, sensors);
 
-
-        if(sensorLed!=null) list.add(cAcl.getObservable(rxBleConnection, sensorLed));
-        if(sensorBat!=null) list.add(cBat.getObservable(rxBleConnection, sensorBat));
+        if(sensorLed != null)
+            list.add(cAcl.getObservable(rxBleConnection, sensorLed));
+        if(sensorBat != null)
+            list.add(cBat.getObservable(rxBleConnection, sensorBat));
         return Observable.merge(list);
     }
 }
