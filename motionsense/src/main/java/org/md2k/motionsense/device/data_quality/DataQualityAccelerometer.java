@@ -32,7 +32,7 @@ import android.util.Log;
 import org.md2k.mcerebrum.core.data_format.DATA_QUALITY;
 
 /**
- * Determines what the quality of the data from the accelermeter is.
+ * Determines what the quality of the data from the accelerometer is.
  */
 public class DataQualityAccelerometer extends DataQuality{
     // This threshold comes from the data we collect by placing the wrist sensor on table.
