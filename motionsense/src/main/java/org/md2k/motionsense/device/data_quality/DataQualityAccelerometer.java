@@ -1,14 +1,6 @@
-package org.md2k.motionsense.device.data_quality;
-
-
-
-import android.util.Log;
-
-import org.md2k.mcerebrum.core.data_format.DATA_QUALITY;
-
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +24,25 @@ import org.md2k.mcerebrum.core.data_format.DATA_QUALITY;
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+package org.md2k.motionsense.device.data_quality;
+
+import android.util.Log;
+
+import org.md2k.mcerebrum.core.data_format.DATA_QUALITY;
+
+/**
+ * Determines what the quality of the data from the accelermeter is.
+ */
 public class DataQualityAccelerometer extends DataQuality{
-    private final static float MAGNITUDE_VARIANCE_THRESHOLD = (float) 0.01;   //this threshold comes from the data we collect by placing the wrist sensor on table. It compares with the wrist accelerometer on-body from participant #11 (smoking pilot study)
+    // This threshold comes from the data we collect by placing the wrist sensor on table.
+    // It compares with the wrist accelerometer on-body from participant #11 (smoking pilot study)
+    private final static float MAGNITUDE_VARIANCE_THRESHOLD = (float) 0.01;
 
-
+    /**
+     * Returns the current data quality.
+     * @return The current data quality.
+     */
     public synchronized int getStatus() {
         try {
             int status;
@@ -51,6 +58,11 @@ public class DataQualityAccelerometer extends DataQuality{
         }
     }
 
+    /**
+     * Returns the mean of the given data.
+     * @param data Data to process.
+     * @return The mean of the given data.
+     */
     private double getMean(double[] data) {
         double sum = 0.0;
         for (double a : data)
@@ -58,6 +70,11 @@ public class DataQualityAccelerometer extends DataQuality{
         return sum / data.length;
     }
 
+    /**
+     * Returns the variance in the given data.
+     * @param data Data to process.
+     * @return The variance in the given data.
+     */
     private double getVariance(double[] data) {
         double mean = getMean(data);
         double temp = 0;
@@ -66,21 +83,29 @@ public class DataQualityAccelerometer extends DataQuality{
         return temp / data.length;
     }
 
+    /**
+     * Returns the standard deviation of the given data.
+     * @param data Data to process.
+     * @return The standard deviation of the given data.
+     */
     private double getStdDev(double[] data) {
         return Math.sqrt(getVariance(data));
     }
 
-    private int currentQuality(double[] x) {       //just receive x axis, in fact it should work with any single axis.
+    /**
+     * Determines if the MotionSense sensor is turned off, not worn, or good.
+     * @param x Data from the x axis.
+     * @return The data quality.
+     */
+    private int currentQuality(double[] x) {
         int len_x = x.length;
-        if (len_x == 0) return DATA_QUALITY.BAND_OFF;
-
-        double sd =getStdDev(x);
-        Log.d("abc","sd="+sd);
+        if (len_x == 0)
+            return DATA_QUALITY.BAND_OFF;
+        double sd = getStdDev(x);
+        Log.d("abc","sd=" + sd);
         if (sd < MAGNITUDE_VARIANCE_THRESHOLD)
             return DATA_QUALITY.NOT_WORN;
 
         return DATA_QUALITY.GOOD;
     }
-
-
 }
