@@ -37,27 +37,46 @@ import java.util.ArrayList;
 
 import rx.Observable;
 
+/**
+ * Creates an object for the MotionSenseHRV hardware.
+ */
 public class MotionSenseHRV extends Device {
     private static final String DEVICE_NAME = "MotionSenseHRV";
+
+    /**
+     * Returns whether the given device is the expected device.
+     * @param name Name of the device.
+     * @param serviceId Service id of the device.
+     * @return Whether the given device is the expected device.
+     */
     public static boolean is(String name, String serviceId){
         return DEVICE_NAME.equals(name) && UUID.equals(serviceId);
     }
 
+    /**
+     * Constructor
+     * @param deviceId Id of the device.
+     */
     public MotionSenseHRV(String deviceId) {
         super(deviceId);
     }
 
+    /**
+     * Returns an <code>Observable</code> over the <code>Characteristic</code>s of the device.
+     * @param rxBleConnection The BLE connection handle.
+     * @return An <code>Observable</code> over the <code>Characteristic</code>s of the device.
+     */
     @Override
     protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection) {
-        ArrayList<Observable<Data>> list=new ArrayList<>();
-        Characteristic cLed=new CharacteristicLed();
+        ArrayList<Observable<Data>> list = new ArrayList<>();
+        Characteristic cLed = new CharacteristicLed();
         Characteristic cBat = new CharacteristicBattery();
-        ArrayList<Sensor> sensorLed=getSensors(cLed, sensors);
-        ArrayList<Sensor> sensorBat=getSensors(cBat, sensors);
-
-
-        if(sensorLed!=null) list.add(cLed.getObservable(rxBleConnection, sensorLed));
-        if(sensorBat!=null) list.add(cBat.getObservable(rxBleConnection, sensorBat));
+        ArrayList<Sensor> sensorLed = getSensors(cLed, sensors);
+        ArrayList<Sensor> sensorBat = getSensors(cBat, sensors);
+        if(sensorLed != null)
+            list.add(cLed.getObservable(rxBleConnection, sensorLed));
+        if(sensorBat != null)
+            list.add(cBat.getObservable(rxBleConnection, sensorBat));
         return Observable.merge(list);
     }
 
