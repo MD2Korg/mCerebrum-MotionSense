@@ -68,7 +68,7 @@ public class CharacteristicAcl extends Characteristic {
 
     /**
      * Prepares a hashmap of <code>Sensor</code>s and their <code>DataSourceType</code>.
-     * @param sensors
+     * @param sensors List of <code>Sensor</code>s to add.
      */
     private void prepareList(ArrayList<Sensor> sensors) {
         listSensor = new HashMap<>();
