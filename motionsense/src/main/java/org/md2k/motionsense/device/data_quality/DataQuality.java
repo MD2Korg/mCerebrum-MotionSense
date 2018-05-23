@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 import rx.Observable;
 
 /**
- *
+ * Provides methods for starting data collection and summarizing said data.
  */
 public abstract class DataQuality {
     private static final int DELAY = 3000;
@@ -61,9 +61,9 @@ public abstract class DataQuality {
     public abstract int getStatus();
 
     /**
-     *
-     * @param sensor
-     * @return
+     * Returns an <code>Observable</code> that receives <code>Data</code> from the <code>Sensor</code>.
+     * @param sensor <code>Sensor</code> to start collecting data from.
+     * @return An <code>Observable</code> that receives <code>Data</code> from the <code>Sensor</code>.
      */
     public Observable<Data> start(Sensor sensor){
         return Observable.interval(DELAY, DELAY, TimeUnit.MILLISECONDS).map(aLong -> {
@@ -81,9 +81,9 @@ public abstract class DataQuality {
     }
 
     /**
-     * 
-     * @param dataTypeInt
-     * @return
+     * Returns the summary.
+     * @param dataTypeInt Data to summarize.
+     * @return The summary.
      */
     DataType getSummary(DataTypeInt dataTypeInt) {
             int[] intArray = new int[7];
