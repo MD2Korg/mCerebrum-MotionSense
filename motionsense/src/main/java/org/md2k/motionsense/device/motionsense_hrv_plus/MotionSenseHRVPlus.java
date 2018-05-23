@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device.motionsense_hrv_plus;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense.device.motionsense_hrv_plus;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device.motionsense_hrv_plus;
+
 import com.polidea.rxandroidble.RxBleConnection;
 
 import org.md2k.motionsense.device.Characteristic;
@@ -39,27 +40,46 @@ import rx.Observable;
 
 public class MotionSenseHRVPlus extends Device {
     private static final String DEVICE_NAME = "MotionSenseHRV+";
+
+    /**
+     * Constructor
+     * @param deviceId Id of the device.
+     */
     public MotionSenseHRVPlus(String deviceId) {
         super(deviceId);
     }
+
+    /**
+     * Returns whether the given device is the expected device.
+     * @param name Name of the device.
+     * @param serviceId Service id of the device.
+     * @return Whether the given device is the expected device.
+     */
     public static boolean is(String name, String serviceId){
         return DEVICE_NAME.equals(name) && UUID.equals(serviceId);
     }
 
+    /**
+     * Returns an <code>Observable</code> over the <code>Characteristic</code>s of the device.
+     * @param rxBleConnection The BLE connection handle.
+     * @return An <code>Observable</code> over the <code>Characteristic</code>s of the device.
+     */
     @Override
     protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection) {
-        ArrayList<Observable<Data>> list=new ArrayList<>();
-        Characteristic cLed=new CharacteristicLed();
-        Characteristic cMag=new CharacteristicMag();
+        ArrayList<Observable<Data>> list = new ArrayList<>();
+        Characteristic cLed = new CharacteristicLed();
+        Characteristic cMag = new CharacteristicMag();
         Characteristic cBat = new CharacteristicBattery();
-        ArrayList<Sensor> sensorLed=getSensors(cLed, sensors);
-        ArrayList<Sensor> sensorMag=getSensors(cMag, sensors);
-        ArrayList<Sensor> sensorBat=getSensors(cBat, sensors);
+        ArrayList<Sensor> sensorLed = getSensors(cLed, sensors);
+        ArrayList<Sensor> sensorMag = getSensors(cMag, sensors);
+        ArrayList<Sensor> sensorBat = getSensors(cBat, sensors);
 
-
-        if(sensorLed!=null) list.add(cLed.getObservable(rxBleConnection, sensorLed));
-        if(sensorMag!=null) list.add(cMag.getObservable(rxBleConnection, sensorMag));
-        if(sensorBat!=null) list.add(cBat.getObservable(rxBleConnection, sensorBat));
+        if(sensorLed != null)
+            list.add(cLed.getObservable(rxBleConnection, sensorLed));
+        if(sensorMag != null)
+            list.add(cMag.getObservable(rxBleConnection, sensorMag));
+        if(sensorBat != null)
+            list.add(cBat.getObservable(rxBleConnection, sensorBat));
         return Observable.merge(list);
     }
 }
