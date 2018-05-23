@@ -50,7 +50,7 @@ import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
 /**
- *
+ * Base class for defining a device.
  */
 public abstract class Device {
     public static final String UUID = "0000180f-0000-1000-8000-00805f9b34fb";
@@ -109,16 +109,18 @@ public abstract class Device {
     abstract protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection);
 
     /**
-     * @param context
-     * @param receiveCallback
+     * Connects the device.
+     * @param context Android context
+     * @param receiveCallback Callback for verifying the connection.
      */
     void connect(Context context, ReceiveCallback receiveCallback) {
         Log.d("abc", "connect start....device=" + deviceId);
         subscriptionRetryConnect = Observable.just(true)
                 .map(new Func1<Boolean, RxBleDevice>() {
                     /**
-                     * @param aBoolean
-                     * @return
+                     * Returns the device.
+                     * @param aBoolean 
+                     * @return The device.
                      */
                     @Override
                     public RxBleDevice call(Boolean aBoolean) {
@@ -131,8 +133,9 @@ public abstract class Device {
                     }
                 }).flatMap(new Func1<RxBleDevice, Observable<? extends RxBleConnection.RxBleConnectionState>>() {
                     /**
-                     * @param device
-                     * @return
+                     * Returns an <code>Observable</code> over the connect states changes for the given device.
+                     * @param device Device to observe.
+                     * @return An <code>Observable</code> over the connect states changes for the given device.
                      */
                     @Override
                     public Observable<? extends RxBleConnection.RxBleConnectionState> call(RxBleDevice device) {
@@ -141,14 +144,16 @@ public abstract class Device {
                 }).doOnUnsubscribe(this::unsubscribeConnect)
                 .flatMap(new Func1<RxBleConnection.RxBleConnectionState, Observable<RxBleConnection.RxBleConnectionState>>() {
                     /**
-                     * @param rxBleConnectionState
-                     * @return
+                     * Returns an <code>Observable</code> over the connection state.
+                     * @param rxBleConnectionState The BLE connection state.
+                     * @return An <code>Observable</code> over the connection state.
                      */
                     @Override
                     public Observable<RxBleConnection.RxBleConnectionState> call(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
                         if (rxBleConnectionState == RxBleConnection.RxBleConnectionState.DISCONNECTED)
                             return Observable.error(new Throwable("abc"));
-                        else return Observable.just(rxBleConnectionState);
+                        else
+                            return Observable.just(rxBleConnectionState);
                     }
                 })
                 .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
@@ -161,7 +166,7 @@ public abstract class Device {
                     return Observable.timer(1000, TimeUnit.MILLISECONDS);
                 })).subscribe(new Observer<RxBleConnection.RxBleConnectionState>() {
                     /**
-                     *
+                     * Logs the completion and calls <code>unsubscribeConnet()</code>.
                      */
                     @Override
                     public void onCompleted() {
@@ -170,7 +175,8 @@ public abstract class Device {
                     }
 
                     /**
-                     * @param e
+                     * Logs the given error and calls <code>unsubscribeConnect()</code>.
+                     * @param e Error that occured.
                      */
                     @Override
                     public void onError(Throwable e) {
@@ -179,7 +185,8 @@ public abstract class Device {
                     }
 
                     /**
-                     * @param rxBleConnectionState
+                     * Logs the <code>onNext()</code> call.
+                     * @param rxBleConnectionState The BLE connection state.
                      */
                     @Override
                     public void onNext(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
@@ -190,8 +197,9 @@ public abstract class Device {
     }
 
     /**
-     * @param context
-     * @param receiveCallback
+     * Subscribes the connection.
+     * @param context Android context.
+     * @param receiveCallback Callback for verifying the connection.
      */
     private void subscribeConnect(Context context, ReceiveCallback receiveCallback) {
         RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
@@ -208,7 +216,7 @@ public abstract class Device {
                 .subscribeOn(Schedulers.newThread())
                 .subscribe(new Observer<Data>() {
                     /**
-                     *
+                     * Logs completion.
                      */
                     @Override
                     public void onCompleted() {
@@ -217,7 +225,8 @@ public abstract class Device {
                     }
 
                     /**
-                     * @param e
+                     * Logs the given error.
+                     * @param e Error that occured.
                      */
                     @Override
                     public void onError(Throwable e) {
@@ -227,7 +236,8 @@ public abstract class Device {
                     }
 
                     /**
-                     * @param data
+                     * Passes the given data to <code>receiveCallback</code>.
+                     * @param data Data to pass.
                      */
                     @Override
                     public void onNext(Data data) {
@@ -238,7 +248,7 @@ public abstract class Device {
     }
 
     /**
-     *
+     * Disconnects the device.
      */
     void disconnect() {
         Log.d("abc", "device=" + deviceId + " disconnect() subscriptionRetryConnect=" + subscriptionRetryConnect);
@@ -248,7 +258,7 @@ public abstract class Device {
     }
 
     /**
-     *
+     * Unsubscribes <code>subscriptionConnect</code>.
      */
     private void unsubscribeConnect() {
         Log.d("abc", "device=" + deviceId + " unsubscribeConnect() subscriptionConnect=" + subscriptionConnect);
