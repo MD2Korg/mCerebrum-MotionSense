@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import rx.Observable;
 
 /**
- *
+ * Base class for defining sensor characteristics.
  */
 public abstract class Characteristic {
     protected long lastTimestamp;
