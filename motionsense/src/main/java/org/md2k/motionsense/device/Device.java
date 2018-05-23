@@ -119,7 +119,7 @@ public abstract class Device {
                 .map(new Func1<Boolean, RxBleDevice>() {
                     /**
                      * Returns the device.
-                     * @param aBoolean 
+                     * @param aBoolean
                      * @return The device.
                      */
                     @Override
