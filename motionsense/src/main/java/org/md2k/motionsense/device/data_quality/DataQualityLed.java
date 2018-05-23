@@ -1,15 +1,6 @@
-package org.md2k.motionsense.device.data_quality;
-
-import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
-import org.md2k.datakitapi.time.DateTime;
-import org.md2k.mcerebrum.core.data_format.DATA_QUALITY;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +24,26 @@ import java.util.Iterator;
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+package org.md2k.motionsense.device.data_quality;
+
+import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
+import org.md2k.datakitapi.time.DateTime;
+import org.md2k.mcerebrum.core.data_format.DATA_QUALITY;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+
+/**
+ * Determines what the quality of the data from the LED is.
+ */
 public class DataQualityLed extends DataQuality {
 
+    /**
+     * Returns whether the last three seconds of data are good.
+     * @param values Data to check.
+     * @return Whether the last three seconds of data are good.
+     */
     private boolean[] isGood3Sec(ArrayList<DataTypeDoubleArray> values) {
         double[] sum = new double[]{0, 0, 0};
         boolean[] res = new boolean[6];
@@ -56,10 +65,14 @@ public class DataQualityLed extends DataQuality {
         res[0] = count[0] < (int) (.34 * values.size());
         res[1] = count[1] < (int) (.34 * values.size());
         res[2] = count[2] < (int) (.34 * values.size());
-//        Log.d("data_quality_led","last 3 quality="+res[0]+" "+res[1]+" "+res[2]);
         return res;
     }
 
+    /**
+     * Returns the mean of the given data.
+     * @param values Data to check.
+     * @return The mean of the given data.
+     */
     private int[] getMean(ArrayList<DataTypeDoubleArray> values) {
         int[] sum = new int[3];
         for (int i = 0; i < values.size(); i++) {
@@ -71,9 +84,12 @@ public class DataQualityLed extends DataQuality {
             sum[i] = sum[i] / values.size();
         }
         return sum;
-
     }
 
+    /**
+     * Returns the last three seconds of data collected.
+     * @return The last three seconds of data collected.
+     */
     private ArrayList<DataTypeDoubleArray> getLast3Sec() {
         long curTime = DateTime.getDateTime();
         ArrayList<DataTypeDoubleArray> l = new ArrayList<>();
@@ -84,6 +100,11 @@ public class DataQualityLed extends DataQuality {
         return l;
     }
 
+    /**
+     * Returns the data sample stored at the given index.
+     * @param index Index of the sample to get.
+     * @return The data sample stored at the given index.
+     */
     private double[] getSample(int index) {
         double[] d = new double[samples.size()];
         for (int i = 0; i < samples.size(); i++) {
@@ -92,6 +113,10 @@ public class DataQualityLed extends DataQuality {
         return d;
     }
 
+    /**
+     * Returns the data quality status of the LED.
+     * @return The data quality status of the LED.
+     */
     @Override
     public synchronized int getStatus() {
         try {
@@ -101,22 +126,18 @@ public class DataQualityLed extends DataQuality {
                 if (curTime - i.next().getDateTime() >= 8000)
                     i.remove();
             }
-
             ArrayList<DataTypeDoubleArray> last3Sec = getLast3Sec();
-//            Log.d("data_quality_led","last 3="+last3Sec.size());
-            if (last3Sec.size() == 0) return DATA_QUALITY.BAND_OFF;
-
+            if (last3Sec.size() == 0)
+                return DATA_QUALITY.BAND_OFF;
             boolean[] sec3mean = isGood3Sec(samples);
-            if (!sec3mean[0] && !sec3mean[1] && !sec3mean[2]) return DATA_QUALITY.NOT_WORN;
-
+            if (!sec3mean[0] && !sec3mean[1] && !sec3mean[2])
+                return DATA_QUALITY.NOT_WORN;
             int[] mean = getMean(samples);
-
-            if (mean[0] < 5000 && mean[1] < 5000 && mean[2] < 5000) return DATA_QUALITY.NOT_WORN;
-
+            if (mean[0] < 5000 && mean[1] < 5000 && mean[2] < 5000)
+                return DATA_QUALITY.NOT_WORN;
             boolean check = mean[0] > mean[2] && mean[1] > mean[0] && mean[1] > mean[2];
-//            Log.d("data_quality_led_mean1",""+check);
-            if (!check) return DATA_QUALITY.BAND_LOOSE;
-
+            if (!check)
+                return DATA_QUALITY.BAND_LOOSE;
             int diff;
             if (mean[0] > 140000) {
                 diff = 15000;
@@ -124,9 +145,8 @@ public class DataQualityLed extends DataQuality {
                 diff = 50000;
             }
             boolean check1 = mean[0] - mean[2] > 50000 && mean[1] - mean[0] > diff;
-//            Log.d("data_quality_led_mean2",""+check1);
-            if (!check1) return DATA_QUALITY.BAND_LOOSE;
-
+            if (!check1)
+                return DATA_QUALITY.BAND_LOOSE;
             if (sec3mean[0] && new Bandpass(getSample(0)).getResult()) {
                 return DATA_QUALITY.GOOD;
             }
@@ -137,9 +157,7 @@ public class DataQualityLed extends DataQuality {
 
                 return DATA_QUALITY.GOOD;
             }
-
             return DATA_QUALITY.NOT_WORN;
-
         } catch (Exception e) {
             return DATA_QUALITY.GOOD;
         }
