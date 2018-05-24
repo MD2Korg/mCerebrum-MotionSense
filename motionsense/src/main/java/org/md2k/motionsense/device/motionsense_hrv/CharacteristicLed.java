@@ -26,6 +26,7 @@ package org.md2k.motionsense.device.motionsense_hrv;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import com.orhanobut.logger.Logger;
 import com.polidea.rxandroidble.RxBleConnection;
 
 import org.md2k.datakitapi.datatype.DataType;
@@ -39,7 +40,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
 
+import rx.BackpressureOverflow;
 import rx.Observable;
+import rx.functions.Action0;
 
 public class CharacteristicLed extends Characteristic {
     private HashMap<String, Sensor> listSensor;
@@ -48,7 +51,7 @@ public class CharacteristicLed extends Characteristic {
         super("da39c921-1d81-48e2-9c68-d0ae4bbd351f", "CHARACTERISTIC_LED", 16.0);
     }
 
-    public Observable<Data> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
+    public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
         prepareList(sensors);
         return setNotify(rxBleConnection);
     }
@@ -63,10 +66,16 @@ public class CharacteristicLed extends Characteristic {
         }
     }
 
-    private Observable<Data> setNotify(RxBleConnection rxBleConnection) {
+    private Observable<ArrayList<Data>> setNotify(RxBleConnection rxBleConnection) {
         UUID uuid = UUID.fromString(getId());
         return rxBleConnection.setupNotification(uuid)
                 .flatMap(notificationObservable -> notificationObservable)
+                .onBackpressureBuffer(100, new Action0() {
+                    @Override
+                    public void call() {
+                        Logger.e("CharacteristicLed...Data Overflow occurs...after buffer... drop oldest packet");
+                    }
+                }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
                 .map(bytes -> {
                     ArrayList<Data> data = new ArrayList<>();
                     int curSeq = (int) TranslateLed.getSequenceNumber(bytes)[0];
@@ -95,7 +104,7 @@ public class CharacteristicLed extends Characteristic {
                     lastTimestamp = curTime;
                     lastSequence = curSeq;
                     return data;
-                }).flatMap(Observable::from);
+                });
     }
 
 }

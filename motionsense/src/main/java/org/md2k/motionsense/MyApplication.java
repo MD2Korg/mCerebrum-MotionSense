@@ -33,6 +33,7 @@ import android.util.Log;
 import com.polidea.rxandroidble.RxBleClient;
 import com.polidea.rxandroidble.internal.RxBleLog;
 
+import org.md2k.mcerebrum.commons.debug.MyLogger;
 import org.md2k.mcerebrum.core.access.MCerebrum;
 
 public class MyApplication extends Application {
@@ -47,6 +48,7 @@ public class MyApplication extends Application {
         MCerebrum.init(getApplicationContext(), MyMCerebrumInit.class);
         Log.d("abc","rxBleClient: state="+rxBleClient.getState().toString());
         Log.d("abc","rxBleClient: bondedDevices size="+rxBleClient.getBondedDevices().size());
+        MyLogger.setLogger(getApplicationContext());
     }
 
     public static RxBleClient getRxBleClient(Context context) {

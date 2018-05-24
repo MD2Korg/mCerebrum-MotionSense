@@ -48,8 +48,8 @@ public class MotionSenseHRV extends Device {
     }
 
     @Override
-    protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection) {
-        ArrayList<Observable<Data>> list=new ArrayList<>();
+    protected Observable<ArrayList<Data>> getCharacteristicsObservable(RxBleConnection rxBleConnection) {
+        ArrayList<Observable<ArrayList<Data>>> list=new ArrayList<>();
         Characteristic cLed=new CharacteristicLed();
         Characteristic cBat = new CharacteristicBattery();
         ArrayList<Sensor> sensorLed=getSensors(cLed, sensors);

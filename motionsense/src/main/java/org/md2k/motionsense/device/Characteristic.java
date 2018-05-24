@@ -56,7 +56,7 @@ public abstract class Characteristic {
         return name;
     }
 
-    abstract public Observable<Data> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors);
+    abstract public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors);
 
     public String getId() {
         return id;

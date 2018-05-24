@@ -28,7 +28,9 @@ package org.md2k.motionsense;
 
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
+import android.util.Log;
 
+import com.orhanobut.logger.Logger;
 import com.polidea.rxandroidble.RxBleClient;
 import com.polidea.rxandroidble.RxBleDevice;
 
@@ -42,6 +44,7 @@ public class BLEPair {
             Method m = device.getClass().getMethod("createBond", (Class[]) null);
             m.invoke(device, (Object[]) null);
         } catch (Exception ignored) {
+            Logger.e("BLEPair pair device error: e="+ignored.toString(), ignored);
         }
     }
 
@@ -51,6 +54,7 @@ public class BLEPair {
             Method m = device.getClass().getMethod("removeBond", (Class[]) null);
             m.invoke(device, (Object[]) null);
         } catch (Exception ignored) {
+            Logger.e("BLEPair unpair device error: e="+ignored.toString(), ignored);
         }
     }
     private static boolean isPaired(Context context, String macAddress){

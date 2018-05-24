@@ -73,6 +73,9 @@ public class ConfigurationManager {
     public static String[] getPlatformIdFromDefault() {
         return DefaultConfig.getPlatformId();
     }
+    public static boolean isForegroundApp(){
+        return DefaultConfig.isForegroundApp();
+    }
 
     public static boolean hasDefault() {
         return DefaultConfig.hasDefault();

@@ -3,6 +3,7 @@ package org.md2k.motionsense.device;
 import android.content.Context;
 import android.util.Log;
 
+import com.orhanobut.logger.Logger;
 import com.polidea.rxandroidble.RxBleConnection;
 import com.polidea.rxandroidble.RxBleDevice;
 
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import rx.BackpressureOverflow;
 import rx.Observable;
 import rx.Observer;
+import rx.Scheduler;
 import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Func1;
@@ -53,7 +55,6 @@ public abstract class Device {
 
     private String deviceId;
     protected ArrayList<Sensor> sensors;
-    private Subscription subscriptionConnect;
     private Subscription subscriptionRetryConnect;
 
     protected Device(String deviceId) {
@@ -79,117 +80,67 @@ public abstract class Device {
         return selected;
     }
 
-    abstract protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection);
+    abstract protected Observable<ArrayList<Data>> getCharacteristicsObservable(RxBleConnection rxBleConnection);
 
     void connect(Context context, ReceiveCallback receiveCallback) {
         Log.d("abc", "connect start....device=" + deviceId);
         subscriptionRetryConnect = Observable.just(true)
-                .map(new Func1<Boolean, RxBleDevice>() {
+                .flatMap(new Func1<Boolean, Observable<? extends RxBleConnection.RxBleConnectionState>>() {
                     @Override
-                    public RxBleDevice call(Boolean aBoolean) {
+                    public Observable<? extends RxBleConnection.RxBleConnectionState> call(Boolean aBoolean) {
                         RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
-                        Log.d("abc", "Device retry: connect(): device=" + device.getMacAddress() + " status=" + device.getConnectionState().toString());
-                        unsubscribeConnect();
-//                if (device.getConnectionState() == RxBleConnection.RxBleConnectionState.DISCONNECTED) {
-                        subscribeConnect(context, receiveCallback);
-//                }
-                        return device;
+                        return Observable.merge(Observable.just(device.getConnectionState()), device.observeConnectionStateChanges());
                     }
-                }).flatMap(new Func1<RxBleDevice, Observable<? extends RxBleConnection.RxBleConnectionState>>() {
+                }).filter(new Func1<RxBleConnection.RxBleConnectionState, Boolean>() {
                     @Override
-                    public Observable<? extends RxBleConnection.RxBleConnectionState> call(RxBleDevice device) {
-                        return device.observeConnectionStateChanges();
-                    }
-                }).doOnUnsubscribe(this::unsubscribeConnect)
-                .flatMap(new Func1<RxBleConnection.RxBleConnectionState, Observable<RxBleConnection.RxBleConnectionState>>() {
-                    @Override
-                    public Observable<RxBleConnection.RxBleConnectionState> call(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
+                    public Boolean call(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
+                        Logger.d("connection status=" + rxBleConnectionState.toString() + " deviceId=" + deviceId);
                         if (rxBleConnectionState == RxBleConnection.RxBleConnectionState.DISCONNECTED)
-                            return Observable.error(new Throwable("abc"));
-                        else return Observable.just(rxBleConnectionState);
+                            return true;
+                        return false;
                     }
-                })
-                .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
-                    Log.e("abc", "Device retry: retrywhen(): error=" + throwable.toString());
-                    for (int i = 0; i < throwable.getStackTrace().length; i++)
-                        Log.e("abc", "Device retry: retrywhen(): error[]=" + throwable.getStackTrace()[i]);
-                    unsubscribeConnect();
-                    return Observable.timer(1000, TimeUnit.MILLISECONDS);
-                })).subscribe(new Observer<RxBleConnection.RxBleConnectionState>() {
+                }).flatMap(new Func1<RxBleConnection.RxBleConnectionState, Observable<ArrayList<Data>>>() {
+                    @Override
+                    public Observable<ArrayList<Data>> call(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
+                        RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
+                        Logger.d("Device connect() ... deviceId=" + deviceId);
+                        return device.establishConnection(true)
+                                .flatMap(rxBleConnection -> {
+                                    Logger.d("Device: subscribeConnect() deviceId = " + device.getMacAddress() + " connection_state =" + device.getConnectionState().toString());
+                                    BLEPair.pairDevice(context, device.getBluetoothDevice());
+                                    return getCharacteristicsObservable(rxBleConnection)
+                                            .onBackpressureBuffer(100, new Action0() {
+                                                @Override
+                                                public void call() {
+                                                    Logger.e("Device...subscribeConnect()...Data Overflow occurs...after buffer... drop oldest packet");
+                                                }
+                                            }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST);
+                                });
+                    }
+                }).retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
+                    Logger.e("Device: connect() retry()..retryWhen(): error e=" + throwable.getMessage(), throwable);
+                    return Observable.just(true);
+                })).subscribeOn(Schedulers.newThread())
+                .observeOn(Schedulers.newThread())
+                .subscribe(new Observer<ArrayList<Data>>() {
                     @Override
                     public void onCompleted() {
-                        Log.e("abc", "Device retry: onCompleted()");
-                        unsubscribeConnect();
+                        Logger.d("Device:  onCompleted()");
                     }
 
                     @Override
                     public void onError(Throwable e) {
-                        Log.e("abc", "Device retry: onError()=" + e.toString());
-                        unsubscribeConnect();
-//                        subscribeConnect(context, receiveCallback);
+                        Logger.e("Device: onError() e=" + e.toString());
                     }
 
                     @Override
-                    public void onNext(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
-                        Log.d("abc", "Device retry: OnNext() device=" + deviceId + " state change=" + rxBleConnectionState.toString());
-/*
-                        if (rxBleConnectionState == RxBleConnection.RxBleConnectionState.DISCONNECTED) {
-                            unsubscribeConnect();
-                            subscribeConnect(context, receiveCallback);
-                        }
-*/
-                    }
-                });
-    }
-
-    private void subscribeConnect(Context context, ReceiveCallback receiveCallback) {
-        RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
-        Log.d("abc", "device = " + device.getMacAddress() + " connectionstate = " + device.getConnectionState().toString());
-        subscriptionConnect = device.establishConnection(false)
-                .onBackpressureBuffer(1024, null, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
-                .flatMap(rxBleConnection -> {
-                    Log.d("abc", "subscribeConnect() device=" + device.getMacAddress() + " connectionstate=" + device.getConnectionState().toString());
-                    BLEPair.pairDevice(context, device.getBluetoothDevice());
-                    return getCharacteristicsObservable(rxBleConnection);
-                })
-                //               .retry()
-//                .retryWhen(new RetryWithDelay(2000))
-
-/*
-                .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
-                    Log.e("abc", "Device=" + device.getMacAddress() + " error=" + throwable.toString());
-                    for(int i=0;i<throwable.getStackTrace().length;i++)
-                        Log.e("abc", "Device=" + device.getMacAddress() + " error[]=" + throwable.getStackTrace()[i]);
-
-                    return Observable.timer(3000,
-                            TimeUnit.MILLISECONDS);
-//                    return Observable.new RetryWithDelay(3000);
-//                    return Observable.just(null);
-                }))
-
-*/
-                .subscribeOn(Schedulers.newThread())
-                .subscribe(new Observer<Data>() {
-                    @Override
-                    public void onCompleted() {
-                        Log.e("abc", "Device -> onCompleted()");
-
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        Log.e("abc", "Device: onError()... e=" + e.toString());
-                        for (int i = 0; i < e.getStackTrace().length; i++)
-                            Log.e("abc", "Device: onError()... e[" + i + "]=" + e.getStackTrace()[i]);
-                    }
-
-                    @Override
-                    public void onNext(Data data) {
+                    public void onNext(ArrayList<Data> data) {
                         if (receiveCallback != null)
                             receiveCallback.onReceive(data);
                     }
                 });
     }
+
 
     void disconnect() {
         Log.d("abc", "device=" + deviceId + " disconnect() subscriptionRetryConnect=" + subscriptionRetryConnect);
@@ -198,14 +149,4 @@ public abstract class Device {
         subscriptionRetryConnect = null;
     }
 
-    private void unsubscribeConnect() {
-        Log.d("abc", "device=" + deviceId + " unsubscribeConnect() subscriptionConnect=" + subscriptionConnect);
-        try {
-            if (subscriptionConnect != null && !subscriptionConnect.isUnsubscribed())
-                subscriptionConnect.unsubscribe();
-            subscriptionConnect = null;
-        } catch (Exception e) {
-            Log.e("abc", "device=" + deviceId + " unsubscribeConnect() error = " + e.toString());
-        }
-    }
 }

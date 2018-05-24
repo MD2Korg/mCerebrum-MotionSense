@@ -28,6 +28,8 @@ package org.md2k.motionsense.device;
 
 import android.content.Context;
 
+import com.orhanobut.logger.Logger;
+
 import org.md2k.datakitapi.source.platform.PlatformType;
 import org.md2k.motionsense.Data;
 import org.md2k.motionsense.ReceiveCallback;
@@ -47,12 +49,13 @@ public class DeviceManager {
         devices = new ArrayList<>();
     }
 
-    public Observable<Data> connect(Context context) {
-        return Observable.create((Subscriber<? super Data> subscriber) -> {
+    public Observable<ArrayList<Data>> connect(Context context) {
+        Logger.d("DeviceManager: connect()");
+        return Observable.create((Subscriber<? super ArrayList<Data>> subscriber) -> {
             for (int i = 0; i < devices.size(); i++)
                 devices.get(i).connect(context, new ReceiveCallback() {
                     @Override
-                    public void onReceive(Data t) {
+                    public void onReceive(ArrayList<Data> t) {
                         subscriber.onNext(t);
                     }
                 });
@@ -83,6 +86,7 @@ public class DeviceManager {
     }
 
     public void disconnect() {
+        Logger.d("DeviceManager: disconnect()");
         for (int i = 0; i < devices.size(); i++)
             devices.get(i).disconnect();
     }

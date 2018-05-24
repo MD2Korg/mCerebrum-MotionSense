@@ -26,6 +26,8 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import java.util.ArrayList;
+
 public interface ReceiveCallback {
-    void onReceive(Data data);
+    void onReceive(ArrayList<Data> data);
 }

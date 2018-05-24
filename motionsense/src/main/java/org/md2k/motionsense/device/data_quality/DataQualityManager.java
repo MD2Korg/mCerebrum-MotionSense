@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import rx.Observable;
+import rx.functions.Func1;
 
 public class DataQualityManager {
     private HashMap<String, DataQuality> dataQualityHashMap;
@@ -48,13 +49,20 @@ public class DataQualityManager {
         sensorHashMap = new HashMap<>();
     }
 
-    public Observable<Data> getObservable() {
+    public Observable<ArrayList<Data>> getObservable() {
         ArrayList<Observable<Data>> observables = new ArrayList<>();
         for (Map.Entry<String, DataQuality> entry : dataQualityHashMap.entrySet()) {
             String key = entry.getKey();
             observables.add(entry.getValue().start(sensorHashMap.get(key)));
         }
-        return Observable.merge(observables);
+        return Observable.merge(observables).map(new Func1<Data, ArrayList<Data>>() {
+            @Override
+            public ArrayList<Data> call(Data data) {
+                ArrayList<Data> a = new ArrayList<>();
+                a.add(data);
+                return a;
+            }
+        });
     }
 
     public void addSensor(Sensor sensor) {

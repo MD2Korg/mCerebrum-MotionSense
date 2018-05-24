@@ -27,6 +27,9 @@ package org.md2k.motionsense.datakit;
  */
 
 import android.content.Context;
+import android.util.Log;
+
+import com.orhanobut.logger.Logger;
 
 import org.md2k.datakitapi.DataKitAPI;
 import org.md2k.datakitapi.datatype.DataType;
@@ -36,6 +39,9 @@ import org.md2k.datakitapi.messagehandler.OnConnectionListener;
 import org.md2k.datakitapi.source.datasource.DataSource;
 import org.md2k.datakitapi.source.datasource.DataSourceBuilder;
 import org.md2k.datakitapi.source.datasource.DataSourceClient;
+import org.md2k.motionsense.Data;
+
+import java.util.ArrayList;
 
 import rx.Observable;
 import rx.Subscriber;
@@ -47,10 +53,12 @@ public class DataKitManager {
             dataKitAPI=DataKitAPI.getInstance(context);
             try {
                 dataKitAPI.connect(() -> {
+                    Logger.d("DataKit Connected..");
                     subscriber.onNext(true);
                     subscriber.onCompleted();
                 });
             } catch (DataKitException e) {
+                Logger.e("datakit exception on connection..e="+e.getMessage());
                 subscriber.onNext(false);
                 subscriber.onCompleted();
             }
@@ -61,10 +69,35 @@ public class DataKitManager {
         try {
             return dataKitAPI.register(dataSourceBuilder);
         } catch (DataKitException e) {
-            return null;
+            Logger.e("datakit exception on register");
+            throw new RuntimeException("DataKit registration error e="+e.getMessage());
         }
 
     }
+    public DataType[] insert(ArrayList<Data> dataTemp) {
+        if(dataTemp.size()==0) return null;
+        try {
+            if (dataTemp.get(0).getDataType() instanceof DataTypeDoubleArray) {
+                DataTypeDoubleArray[] dataTypeDoubleArrays = new DataTypeDoubleArray[dataTemp.size()];
+                for (int i = 0; i < dataTemp.size(); i++)
+                    dataTypeDoubleArrays[i] = (DataTypeDoubleArray) dataTemp.get(i).getDataType();
+                dataKitAPI.insertHighFrequency(dataTemp.get(0).getSensor().getDataSourceClient(), dataTypeDoubleArrays);
+                return dataTypeDoubleArrays;
+            } else {
+                DataType[] dataTypes = new DataType[dataTemp.size()];
+                for (int i = 0; i < dataTemp.size(); i++)
+                    dataTypes[i] = dataTemp.get(i).getDataType();
+                dataKitAPI.insert(dataTemp.get(0).getSensor().getDataSourceClient(), dataTypes);
+                return dataTypes;
+            }
+        }catch (DataKitException e){
+            Logger.e("datakit exception on insert error="+e.getMessage());
+            throw new RuntimeException("DataKit Insert error e="+e.getMessage());
+
+        }
+
+    }
+/*
 
     public void insert(DataSourceClient dataSourceClient, DataType dataType) {
         try {
@@ -72,10 +105,21 @@ public class DataKitManager {
                 dataKitAPI.insertHighFrequency(dataSourceClient, (DataTypeDoubleArray) dataType);
             else
                 dataKitAPI.insert(dataSourceClient, dataType);
-        }catch (Exception ignored){
 
+        }catch (Exception ignored){
+            Logger.e("datakit exception on insert error="+ignored.getMessage());
+            throw new RuntimeException("DataKit Insert error e="+ignored.getMessage());
         }
     }
+    public void insert(DataSourceClient dataSourceClient, DataTypeDoubleArray dataType[]) {
+        try {
+                dataKitAPI.insertHighFrequency(dataSourceClient, dataType);
+        }catch (Exception ignored){
+            Logger.e("datakit exception on insert error="+ignored.getMessage());
+            throw new RuntimeException("DataKit Insert error e="+ignored.getMessage());
+        }
+    }
+*/
 
     public void disconnect() {
         dataKitAPI.disconnect();
@@ -85,7 +129,9 @@ public class DataKitManager {
         try {
             dataKitAPI.setSummary(dataSourceClient, dataType);
         } catch (DataKitException e) {
-            //e.printStackTrace();
+            Logger.e("datakit exception on setSummary error="+e.getMessage());
+            throw new RuntimeException("DataKit setSummary error e="+e.getMessage());
         }
     }
+
 }

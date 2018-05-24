@@ -91,22 +91,25 @@ public class ActivityPlot extends RealtimeLineChartActivity {
                 legends = new String[]{ds};
                 break;
         }
-        DataType data = intent.getParcelableExtra(DataType.class.getSimpleName());
-        if (data instanceof DataTypeFloat) {
-            sample = new float[]{((DataTypeFloat) data).getSample()};
-        } else if (data instanceof DataTypeFloatArray) {
-            sample = ((DataTypeFloatArray) data).getSample();
-        } else if (data instanceof DataTypeDoubleArray) {
-            double[] samples = ((DataTypeDoubleArray) data).getSample();
-            sample = new float[samples.length];
-            for (int i = 0; i < samples.length; i++) {
-                sample[i] = (float) samples[i];
+        DataType[] datas = (DataType[]) intent.getParcelableArrayExtra(DataType.class.getSimpleName());
+        for(int ii = 0;ii<datas.length;ii++) {
+            DataType data = datas[ii];
+            if (data instanceof DataTypeFloat) {
+                sample = new float[]{((DataTypeFloat) data).getSample()};
+            } else if (data instanceof DataTypeFloatArray) {
+                sample = ((DataTypeFloatArray) data).getSample();
+            } else if (data instanceof DataTypeDoubleArray) {
+                double[] samples = ((DataTypeDoubleArray) data).getSample();
+                sample = new float[samples.length];
+                for (int i = 0; i < samples.length; i++) {
+                    sample[i] = (float) samples[i];
+                }
+            } else if (data instanceof DataTypeDouble) {
+                double samples = ((DataTypeDouble) data).getSample();
+                sample = new float[]{(float) samples};
             }
-        } else if (data instanceof DataTypeDouble) {
-            double samples = ((DataTypeDouble) data).getSample();
-            sample = new float[]{(float) samples};
+            addEntry(sample, legends, 600);
         }
-        addEntry(sample, legends, 600);
     }
 
 }
