@@ -27,9 +27,11 @@
 
 package org.md2k.motionsense;
 
+import java.util.ArrayList;
+
 /**
  * Handles the receipt of data.
  */
 public interface ReceiveCallback {
-    void onReceive(Data data);
+    void onReceive(ArrayList<Data> data);
 }

@@ -102,7 +102,6 @@ public class DataQualityAccelerometer extends DataQuality{
         if (len_x == 0)
             return DATA_QUALITY.BAND_OFF;
         double sd = getStdDev(x);
-        Log.d("abc","sd=" + sd);
         if (sd < MAGNITUDE_VARIANCE_THRESHOLD)
             return DATA_QUALITY.NOT_WORN;
 

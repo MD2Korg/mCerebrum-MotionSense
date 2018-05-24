@@ -27,6 +27,8 @@
 
 package org.md2k.motionsense;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
@@ -35,12 +37,17 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.LocationManager;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.util.SparseArray;
 
 
+import com.orhanobut.logger.Logger;
+
 import org.md2k.datakitapi.datatype.DataType;
+import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
+import org.md2k.datakitapi.exception.DataKitException;
 import org.md2k.datakitapi.source.METADATA;
 import org.md2k.datakitapi.source.datasource.DataSource;
 import org.md2k.datakitapi.source.datasource.DataSourceClient;
@@ -54,12 +61,19 @@ import org.md2k.motionsense.error.ErrorNotify;
 import org.md2k.motionsense.permission.Permission;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import rx.BackpressureOverflow;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
 import rx.exceptions.CompositeException;
+import rx.exceptions.MissingBackpressureException;
+import rx.functions.Action0;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
@@ -83,14 +97,14 @@ public class ServiceMotionSense extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.e("abc","Service: onCreate()...");
+        Logger.d("Service: onCreate()...");
         summary = new SparseArray<>();
         ErrorNotify.removeNotification(ServiceMotionSense.this);
         loadListener();
 
         subscription = Observable.just(true)
                 .map(aBoolean -> {
-                    Log.e("abc","permission");
+                    Log.e("abc", "permission");
                     boolean res = Permission.hasPermission(ServiceMotionSense.this);
                     if (!res) ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.PERMISSION);
                     return res;
@@ -98,7 +112,8 @@ public class ServiceMotionSense extends Service {
                 .map(aBoolean -> {
                     BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
                     boolean res = mBluetoothAdapter.isEnabled();
-                    if (!res) ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.BLUETOOTH_OFF);
+                    if (!res)
+                        ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.BLUETOOTH_OFF);
                     return res;
                 }).filter(x -> x)
                 .map(aBoolean -> {
@@ -118,11 +133,13 @@ public class ServiceMotionSense extends Service {
                 .flatMap(aBoolean -> {
                     dataKitManager = new DataKitManager();
                     return dataKitManager.connect(ServiceMotionSense.this).map(res -> {
-                        if (!res) ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.DATAKIT_CONNECTION_ERROR);
+                        if (!res)
+                            ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.DATAKIT_CONNECTION_ERROR);
                         return res;
                     });
                 }).doOnUnsubscribe(() -> {
-                    if(dataKitManager != null)
+                    Log.e("abc", "doOnUnsubscribe...datakitmanager");
+                    if (dataKitManager != null)
                         dataKitManager.disconnect();
                 }).filter(x -> x)
                 .map(aBoolean -> {
@@ -143,9 +160,9 @@ public class ServiceMotionSense extends Service {
                                 dataSources.get(i).getMetadata().get("CHARACTERISTIC_NAME"),
                                 dataSources.get(i).getType(),
                                 dataSources.get(i).getId());
-                        if(dataSources.get(i).getType().equals(DataSourceType.DATA_QUALITY)){
+                        if (dataSources.get(i).getType().equals(DataSourceType.DATA_QUALITY)) {
                             dataQualityManager.addSensor(sensor);
-                        }else{
+                        } else {
                             deviceManager.add(sensor);
                         }
                     }
@@ -155,15 +172,108 @@ public class ServiceMotionSense extends Service {
                     return Observable.merge(deviceManager.connect(ServiceMotionSense.this), dataQualityManager.getObservable());
                 })
                 .doOnUnsubscribe(() -> {
-                    if(deviceManager != null)
+                    Logger.d("Service: doOnUnsubscribe..device manager...disconnecting...");
+                    if (deviceManager != null)
                         deviceManager.disconnect();
                 })
-                .onBackpressureBuffer(1024, null, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
+                .buffer(500, TimeUnit.MILLISECONDS)
+                .onBackpressureBuffer(100, new Action0() {
+                    @Override
+                    public void call() {
+                        Logger.e("Device...subscribeConnect()...Data Overflow occurs...after buffer... drop oldest packet");
+                    }
+                }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
+                .flatMap(new Func1<List<ArrayList<Data>>, Observable<Data>>() {
+                    @Override
+                    public Observable<Data> call(List<ArrayList<Data>> arrayLists) {
+                        ArrayList<Data> data = new ArrayList<>();
+                        for(int i=0;i<arrayLists.size();i++){
+                            ArrayList<Data> x = arrayLists.get(i);
+                            data.addAll(x);
+                        }
+                        if(data.size()==0) return null;
+                        HashSet<Integer> dsIds = new HashSet<>();
+                        for (int i = 0; i < data.size(); i++)
+                            dsIds.add(data.get(i).getSensor().getDataSourceClient().getDs_id());
+                        for (Integer dsId : dsIds) {
+                            ArrayList<Data> dataTemp = new ArrayList<>();
+                            for (int i = 0; i < data.size(); i++) {
+                                if (data.get(i).getSensor().getDataSourceClient().getDs_id() == dsId) {
+                                    dataTemp.add(data.get(i));
+                                }
+                            }
+                            if (dataTemp.size() == 0) continue;
+                            DataType[] dataTypes = dataKitManager.insert(dataTemp);
+                            for (int i = 0; i < dataTemp.size(); i++) {
+                                if (dataTemp.get(i).getSensor().getDataSourceType().equals(DataSourceType.DATA_QUALITY)) {
+                                    dataKitManager.setSummary(dataTemp.get(i).getSensor().getDataSourceClient(), dataQualityManager.getSummary(dataTemp.get(i)));
+                                } else
+                                    dataQualityManager.addData(dataTemp.get(i));
+                                Summary s = summary.get(dataTemp.get(i).getSensor().getDataSourceClient().getDs_id());
+                                if (s == null) {
+                                    s = new Summary();
+                                    summary.put(dataTemp.get(i).getSensor().getDataSourceClient().getDs_id(), s);
+                                }
+                                s.set();
+                            }
+                            Intent intent = new Intent(INTENT_DATA);
+                            intent.putExtra(DataSource.class.getSimpleName(), dataTemp.get(0).getSensor().getDataSourceClient().getDataSource());
+                            intent.putExtra(DataType.class.getSimpleName(), dataTypes);
+                            intent.putExtra(Summary.class.getSimpleName(), summary.get(dataTemp.get(0).getSensor().getDataSourceClient().getDs_id()));
+                            LocalBroadcastManager.getInstance(ServiceMotionSense.this).sendBroadcast(intent);
+
+                        }
+//                        dataKitManager.insert(data.getSensor().getDataSourceClient(), data.getDataType());
+/*
+                        if (data.getSensor().getDataSourceType().equals(DataSourceType.DATA_QUALITY))
+                            dataKitManager.setSummary(data.getSensor().getDataSourceClient(), dataQualityManager.getSummary(data));
+                        else
+                            dataQualityManager.addData(data);
+
+                        Intent intent = new Intent(INTENT_DATA);
+                        Summary s = summary.get(data.getSensor().getDataSourceClient().getDs_id());
+                        if (s == null) {
+                            s = new Summary();
+                            summary.put(data.getSensor().getDataSourceClient().getDs_id(), s);
+                        }
+                        s.set();
+                        intent.putExtra(DataSource.class.getSimpleName(), data.getSensor().getDataSourceClient().getDataSource());
+                        intent.putExtra(DataType.class.getSimpleName(), data.getDataType());
+                        intent.putExtra(Summary.class.getSimpleName(), s);
+                        LocalBroadcastManager.getInstance(ServiceMotionSense.this).sendBroadcast(intent);
+*/
+                        return Observable.just(data.get(0));
+                    }
+                })
+                /*.onBackpressureBuffer(1024, new Action0() {
+                    @Override
+                    public void call() {
+                        Logger.e("Device...subscribeConnect()...Data Overflow occurs..after push...drop oldest packet");
+                    }
+                }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)*/
+/*
+                .onErrorResumeNext(new Func1<Throwable, Observable<? extends Data>>() {
+                    @Override
+                    public Observable<? extends Data> call(Throwable throwable) {
+                        Logger.e("onresumenext()...throwable="+throwable.getMessage());
+                        if(throwable instanceof CompositeException){
+                            CompositeException c = (CompositeException) throwable;
+                            for(int i=0;i<c.getExceptions().size();i++) {
+                                if (!(c.getExceptions().get(i) instanceof MissingBackpressureException)) {
+                                    Logger.e("onresumenext()...throwable...e="+c.getExceptions().get(i).getMessage());
+                                    return Observable.error(throwable);
+                                }
+                            }
+                            Logger.e("onresumenext()...throwable...all are missingbackpressueexception..continue");
+                            return Observable.just(null);
+                        }
+                        return Observable.error(throwable);
+                    }
+                })
+*/
                 .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
-                    Log.e("abc", "Service: error=" + throwable.toString());
-                    if(deviceManager != null)
-                    deviceManager.disconnect();
-                        return Observable.just(null);
+                    Logger.e("Service: retryWhen()...error=" + throwable.getMessage()+" "+throwable.toString(), throwable);
+                    return Observable.just(null);
                 }))
                 .observeOn(Schedulers.newThread())
                 .subscribe(new Observer<Data>() {
@@ -172,7 +282,7 @@ public class ServiceMotionSense extends Service {
                      */
                     @Override
                     public void onCompleted() {
-                        Log.e("abc","Service -> onCompleted()");
+                        Logger.d("Service -> onCompleted()");
                         unsubscribe();
                         stopSelf();
                     }
@@ -182,7 +292,7 @@ public class ServiceMotionSense extends Service {
                      */
                     @Override
                     public void onError(Throwable e) {
-                        Log.e("abc","Service onError()... e=" + e.toString() + " ");
+                        Logger.e("Service onError()... e=" + e.getMessage(), e);
                         unsubscribe();
                         stopSelf();
                     }
@@ -193,22 +303,6 @@ public class ServiceMotionSense extends Service {
                      */
                     @Override
                     public void onNext(Data data) {
-                        dataKitManager.insert(data.getSensor().getDataSourceClient(), data.getDataType());
-                        if(data.getSensor().getDataSourceType().equals(DataSourceType.DATA_QUALITY))
-                            dataKitManager.setSummary(data.getSensor().getDataSourceClient(), dataQualityManager.getSummary(data));
-                        else
-                            dataQualityManager.addData(data);
-                        Intent intent = new Intent(INTENT_DATA);
-                        Summary s = summary.get(data.getSensor().getDataSourceClient().getDs_id());
-                        if(s == null){
-                            s = new Summary();
-                            summary.put(data.getSensor().getDataSourceClient().getDs_id(), s);
-                        }
-                        s.set();
-                        intent.putExtra(DataSource.class.getSimpleName(), data.getSensor().getDataSourceClient().getDataSource());
-                        intent.putExtra(DataType.class.getSimpleName(), data.getDataType());
-                        intent.putExtra(Summary.class.getSimpleName(), s);
-                        LocalBroadcastManager.getInstance(ServiceMotionSense.this).sendBroadcast(intent);
                     }
                 });
     }
@@ -228,19 +322,21 @@ public class ServiceMotionSense extends Service {
      */
     @Override
     public void onDestroy() {
+        Logger.d("Service: onDestroy()...");
+        if (ConfigurationManager.isForegroundApp())
+            stopForegroundService();
         unsubscribe();
         try {
             unregisterReceiver(mReceiver);
-        } catch (Exception ignored){}
-
-        Log.e("abc","Service: onDestroy()...");
+        } catch (Exception ignored) {
+        }
         super.onDestroy();
     }
 
     /**
      * Unsubscribes the observable.
      */
-    void unsubscribe(){
+    void unsubscribe() {
         if (subscription != null && !subscription.isUnsubscribed())
             subscription.unsubscribe();
         subscription = null;
@@ -265,7 +361,7 @@ public class ServiceMotionSense extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            if (action!=null && action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+            if (action != null && action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
                 final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
                 switch (state) {
                     case BluetoothAdapter.STATE_OFF:
@@ -275,9 +371,9 @@ public class ServiceMotionSense extends Service {
                         stopSelf();
                         break;
                 }
-            } else if (action!=null && action.equals(ACTION_LOCATION_CHANGED)) {
+            } else if (action != null && action.equals(ACTION_LOCATION_CHANGED)) {
                 LocationManager locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
-                if (locationManager!=null && !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                if (locationManager != null && !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                     ErrorNotify.handle(ServiceMotionSense.this, ErrorNotify.GPS_OFF);
                     unsubscribe();
                     stopSelf();
@@ -285,5 +381,47 @@ public class ServiceMotionSense extends Service {
             }
         }
     };
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (ConfigurationManager.hasDefault() && ConfigurationManager.isForegroundApp())
+            startForegroundService();
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+    private static final String TAG_FOREGROUND_SERVICE = "FOREGROUND_SERVICE";
+
+    private void startForegroundService() {
+        Log.d(TAG_FOREGROUND_SERVICE, "Start foreground service.");
+
+        // Create notification default intent.
+        Intent intent = new Intent();
+
+        // Create notification builder.
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+
+        builder.setWhen(System.currentTimeMillis());
+        builder.setSmallIcon(R.mipmap.ic_launcher);
+        builder.setContentTitle("Wrist app running...");
+
+
+        // Build the notification.
+        Notification notification = builder.build();
+
+        // Start foreground service.
+        startForeground(1, notification);
+    }
+
+    private void stopForegroundService() {
+
+        Log.d(TAG_FOREGROUND_SERVICE, "Stop foreground service.");
+
+        // Stop foreground service and remove the notification.
+        stopForeground(true);
+
+        // Stop the foreground service.
+        stopSelf();
+    }
+
 }
 

@@ -306,8 +306,8 @@ public class ActivityMain extends AppCompatActivity {
         try {
             DataSource dataSource = intent.getParcelableExtra(DataSource.class.getSimpleName());
             Summary summary=intent.getParcelableExtra(Summary.class.getSimpleName());
-            DataType dataType = intent.getParcelableExtra(DataType.class.getSimpleName());
-            String id = getId(dataSource);
+            DataType dataType = (DataType) intent.getParcelableArrayExtra(DataType.class.getSimpleName())[0];
+            String id=getId(dataSource);
             if (hashMapData.containsKey(id + "_count"))
                 hashMapData.get(id + "_count").setText(String.valueOf(summary.getCount()));
             if (hashMapData.containsKey(id + "_freq"))

@@ -27,6 +27,7 @@
 
 package org.md2k.motionsense.device.motionsense_hrv_plus;
 
+import com.orhanobut.logger.Logger;
 import com.polidea.rxandroidble.RxBleConnection;
 
 import org.md2k.datakitapi.datatype.DataType;
@@ -40,7 +41,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
 
+import rx.BackpressureOverflow;
 import rx.Observable;
+import rx.functions.Action0;
 
 /**
  * Defines the LED characteristic of the device.
@@ -61,7 +64,7 @@ public class CharacteristicLed extends Characteristic {
      * @param sensors Arraylist of <code>Sensor</code>s
      * @return The <code>Observable</code> created in <code>setNotify()</code>.
      */
-    public Observable<Data> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
+    public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
         prepareList(sensors);
         return setNotify(rxBleConnection);
     }
@@ -85,10 +88,16 @@ public class CharacteristicLed extends Characteristic {
      * @param rxBleConnection The BLE connection handle.
      * @return An <code>Observable</code> to create notifications for accelerometer data.
      */
-    private Observable<Data> setNotify(RxBleConnection rxBleConnection) {
+    private Observable<ArrayList<Data>> setNotify(RxBleConnection rxBleConnection) {
         UUID uuid = UUID.fromString(getId());
         return rxBleConnection.setupNotification(uuid)
                 .flatMap(notificationObservable -> notificationObservable)
+                .onBackpressureBuffer(100, new Action0() {
+                    @Override
+                    public void call() {
+                        Logger.e("CharacteristicLed...Data Overflow occurs...after buffer... drop oldest packet");
+                    }
+                }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
                 .map(bytes -> {
                     ArrayList<Data> data = new ArrayList<>();
                     int curSeq = (int) TranslateLed.getSequenceNumber(bytes)[0];
@@ -118,6 +127,6 @@ public class CharacteristicLed extends Characteristic {
                     lastSequence = curSeq;
                     lastTimestamp = curTime;
                     return data;
-                }).flatMap(Observable::from);
+                });
     }
 }

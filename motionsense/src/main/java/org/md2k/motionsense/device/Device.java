@@ -30,6 +30,7 @@ package org.md2k.motionsense.device;
 import android.content.Context;
 import android.util.Log;
 
+import com.orhanobut.logger.Logger;
 import com.polidea.rxandroidble.RxBleConnection;
 import com.polidea.rxandroidble.RxBleDevice;
 
@@ -44,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import rx.BackpressureOverflow;
 import rx.Observable;
 import rx.Observer;
+import rx.Scheduler;
 import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Func1;
@@ -57,7 +59,6 @@ public abstract class Device {
 
     private String deviceId;
     protected ArrayList<Sensor> sensors;
-    private Subscription subscriptionConnect;
     private Subscription subscriptionRetryConnect;
 
     /**
@@ -106,7 +107,7 @@ public abstract class Device {
      * @param rxBleConnection The BLE connection handle.
      * @return An <code>Observable</code> over the <code>Characteristic</code> data.
      */
-    abstract protected Observable<Data> getCharacteristicsObservable(RxBleConnection rxBleConnection);
+    abstract protected Observable<ArrayList<Data>> getCharacteristicsObservable(RxBleConnection rxBleConnection);
 
     /**
      * Connects the device.
@@ -116,112 +117,68 @@ public abstract class Device {
     void connect(Context context, ReceiveCallback receiveCallback) {
         Log.d("abc", "connect start....device=" + deviceId);
         subscriptionRetryConnect = Observable.just(true)
-                .map(new Func1<Boolean, RxBleDevice>() {
+                .flatMap(new Func1<Boolean, Observable<? extends RxBleConnection.RxBleConnectionState>>() {
                     /**
                      * Returns the device.
                      * @param aBoolean
                      * @return The device.
                      */
                     @Override
-                    public RxBleDevice call(Boolean aBoolean) {
+                    public Observable<? extends RxBleConnection.RxBleConnectionState> call(Boolean aBoolean) {
                         RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
-                        Log.d("abc", "Device retry: connect(): device=" + device.getMacAddress() +
-                                " status=" + device.getConnectionState().toString());
-                        unsubscribeConnect();
-                        subscribeConnect(context, receiveCallback);
-                        return device;
+                        return Observable.merge(Observable.just(device.getConnectionState()), device.observeConnectionStateChanges());
                     }
-                }).flatMap(new Func1<RxBleDevice, Observable<? extends RxBleConnection.RxBleConnectionState>>() {
+                }).filter(new Func1<RxBleConnection.RxBleConnectionState, Boolean>() {
                     /**
-                     * Returns an <code>Observable</code> over the connect states changes for the given device.
-                     * @param device Device to observe.
-                     * @return An <code>Observable</code> over the connect states changes for the given device.
+                     * Returns whether the given connection is disconnected or not.
+                     * @param rxBleConnectionState 
+                     * @return Whether the given connection is disconnected or not.
                      */
                     @Override
-                    public Observable<? extends RxBleConnection.RxBleConnectionState> call(RxBleDevice device) {
-                        return device.observeConnectionStateChanges();
+                    public Boolean call(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
+                        Logger.d("connection status=" + rxBleConnectionState.toString() + " deviceId=" + deviceId);
+                        if (rxBleConnectionState == RxBleConnection.RxBleConnectionState.DISCONNECTED)
+                            return true;
+                        return false;
                     }
-                }).doOnUnsubscribe(this::unsubscribeConnect)
-                .flatMap(new Func1<RxBleConnection.RxBleConnectionState, Observable<RxBleConnection.RxBleConnectionState>>() {
+                }).flatMap(new Func1<RxBleConnection.RxBleConnectionState, Observable<ArrayList<Data>>>() {
                     /**
                      * Returns an <code>Observable</code> over the connection state.
                      * @param rxBleConnectionState The BLE connection state.
                      * @return An <code>Observable</code> over the connection state.
                      */
                     @Override
-                    public Observable<RxBleConnection.RxBleConnectionState> call(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
-                        if (rxBleConnectionState == RxBleConnection.RxBleConnectionState.DISCONNECTED)
-                            return Observable.error(new Throwable("abc"));
-                        else
-                            return Observable.just(rxBleConnectionState);
+                    public Observable<ArrayList<Data>> call(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
+                        RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
+                        Logger.d("Device connect() ... deviceId=" + deviceId);
+                        return device.establishConnection(true)
+                                .flatMap(rxBleConnection -> {
+                                    Logger.d("Device: subscribeConnect() deviceId = " + device.getMacAddress() + " connection_state =" + device.getConnectionState().toString());
+                                    BLEPair.pairDevice(context, device.getBluetoothDevice());
+                                    return getCharacteristicsObservable(rxBleConnection)
+                                            .onBackpressureBuffer(100, new Action0() {
+                                                /**
+                                                 * Logs a data overflow.
+                                                 */
+                                                @Override
+                                                public void call() {
+                                                    Logger.e("Device...subscribeConnect()...Data Overflow occurs...after buffer... drop oldest packet");
+                                                }
+                                            }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST);
+                                });
                     }
-                })
-                .retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
-                    Log.e("abc", "Device retry: retrywhen(): error=" + throwable.toString());
-
-                    for (int i = 0; i < throwable.getStackTrace().length; i++)
-                        Log.e("abc", "Device retry: retrywhen(): error[]=" + throwable.getStackTrace()[i]);
-
-                    unsubscribeConnect();
-                    return Observable.timer(1000, TimeUnit.MILLISECONDS);
-                })).subscribe(new Observer<RxBleConnection.RxBleConnectionState>() {
-                    /**
-                     * Logs the completion and calls <code>unsubscribeConnet()</code>.
-                     */
-                    @Override
-                    public void onCompleted() {
-                        Log.e("abc", "Device retry: onCompleted()");
-                        unsubscribeConnect();
-                    }
-
-                    /**
-                     * Logs the given error and calls <code>unsubscribeConnect()</code>.
-                     * @param e Error that occured.
-                     */
-                    @Override
-                    public void onError(Throwable e) {
-                        Log.e("abc", "Device retry: onError()=" + e.toString());
-                        unsubscribeConnect();
-                    }
-
-                    /**
-                     * Logs the <code>onNext()</code> call.
-                     * @param rxBleConnectionState The BLE connection state.
-                     */
-                    @Override
-                    public void onNext(RxBleConnection.RxBleConnectionState rxBleConnectionState) {
-                        Log.d("abc", "Device retry: OnNext() device=" + deviceId +
-                                " state change=" + rxBleConnectionState.toString());
-                    }
-                });
-    }
-
-    /**
-     * Subscribes the connection.
-     * @param context Android context.
-     * @param receiveCallback Callback for verifying the connection.
-     */
-    private void subscribeConnect(Context context, ReceiveCallback receiveCallback) {
-        RxBleDevice device = MyApplication.getRxBleClient(context).getBleDevice(deviceId);
-        Log.d("abc", "device = " + device.getMacAddress() + " connectionstate = " +
-                device.getConnectionState().toString());
-        subscriptionConnect = device.establishConnection(false)
-                .onBackpressureBuffer(1024, null, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
-                .flatMap(rxBleConnection -> {
-                    Log.d("abc", "subscribeConnect() device=" + device.getMacAddress() +
-                            " connectionstate=" + device.getConnectionState().toString());
-                    BLEPair.pairDevice(context, device.getBluetoothDevice());
-                    return getCharacteristicsObservable(rxBleConnection);
-                })
-                .subscribeOn(Schedulers.newThread())
-                .subscribe(new Observer<Data>() {
+                }).retryWhen(errors -> errors.flatMap((Func1<Throwable, Observable<?>>) throwable -> {
+                    Logger.e("Device: connect() retry()..retryWhen(): error e=" + throwable.getMessage(), throwable);
+                    return Observable.just(true);
+                })).subscribeOn(Schedulers.newThread())
+                .observeOn(Schedulers.newThread())
+                .subscribe(new Observer<ArrayList<Data>>() {
                     /**
                      * Logs completion.
                      */
                     @Override
                     public void onCompleted() {
-                        Log.e("abc", "Device -> onCompleted()");
-
+                        Logger.d("Device:  onCompleted()");
                     }
 
                     /**
@@ -230,9 +187,7 @@ public abstract class Device {
                      */
                     @Override
                     public void onError(Throwable e) {
-                        Log.e("abc", "Device: onError()... e=" + e.toString());
-                        for (int i = 0; i < e.getStackTrace().length; i++)
-                            Log.e("abc", "Device: onError()... e[" + i + "]=" + e.getStackTrace()[i]);
+                        Logger.e("Device: onError() e=" + e.toString());
                     }
 
                     /**
@@ -240,7 +195,7 @@ public abstract class Device {
                      * @param data Data to pass.
                      */
                     @Override
-                    public void onNext(Data data) {
+                    public void onNext(ArrayList<Data> data) {
                         if (receiveCallback != null)
                             receiveCallback.onReceive(data);
                     }
@@ -255,19 +210,5 @@ public abstract class Device {
         if (subscriptionRetryConnect != null && !subscriptionRetryConnect.isUnsubscribed())
             subscriptionRetryConnect.unsubscribe();
         subscriptionRetryConnect = null;
-    }
-
-    /**
-     * Unsubscribes <code>subscriptionConnect</code>.
-     */
-    private void unsubscribeConnect() {
-        Log.d("abc", "device=" + deviceId + " unsubscribeConnect() subscriptionConnect=" + subscriptionConnect);
-        try {
-            if (subscriptionConnect != null && !subscriptionConnect.isUnsubscribed())
-                subscriptionConnect.unsubscribe();
-            subscriptionConnect = null;
-        } catch (Exception e) {
-            Log.e("abc", "device=" + deviceId + " unsubscribeConnect() error = " + e.toString());
-        }
     }
 }

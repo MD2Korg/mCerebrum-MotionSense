@@ -74,13 +74,15 @@ public abstract class Characteristic {
         return name;
     }
 
+
     /**
      * Returns an <code>Observable</code> over the data for this <code>Characteristic</code>.
      * @param rxBleConnection The BLE connection handle
      * @param sensors Arraylist of <code>Sensor</code>s
      * @return An <code>Observable</code> over the data for this <code>Characteristic</code>.
      */
-    abstract public Observable<Data> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors);
+    abstract public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors);
+
 
     /**
      * Returns the id.

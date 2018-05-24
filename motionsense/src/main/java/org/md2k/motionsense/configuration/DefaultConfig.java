@@ -42,6 +42,7 @@ class DefaultConfig {
     private static final String DEFAULT_CONFIG_FILENAME = "default_config.json";
 
     int required;
+    boolean foreground_app;
     ArrayList<Device> devices;
 
     /**
@@ -61,6 +62,11 @@ class DefaultConfig {
                     return defaultConfig.devices.get(i).sensors;
         }
         return null;
+    }
+    static boolean isForegroundApp(){
+        DefaultConfig defaultConfig = read();
+        if(defaultConfig==null) return false;
+        return defaultConfig.foreground_app;
     }
 
     /**

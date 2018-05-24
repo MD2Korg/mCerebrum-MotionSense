@@ -27,6 +27,7 @@
 
 package org.md2k.motionsense.device.motionsense_hrv;
 
+import com.orhanobut.logger.Logger;
 import com.polidea.rxandroidble.RxBleConnection;
 
 import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
@@ -38,7 +39,9 @@ import org.md2k.motionsense.device.Sensor;
 import java.util.ArrayList;
 import java.util.UUID;
 
+import rx.BackpressureOverflow;
 import rx.Observable;
+import rx.functions.Action0;
 
 /**
  * Defines the battery characteristic of the device.
@@ -61,12 +64,21 @@ public class CharacteristicBattery extends Characteristic {
      * @return An <code>Observable</code> over the data for this <code>Characteristic</code>.
      */
     @Override
-    public Observable<Data> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
+    public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
         UUID uuid = UUID.fromString(getId());
         return rxBleConnection.setupNotification(uuid)
-                .flatMap(notificationObservable -> notificationObservable).map(bytes -> {
+                .flatMap(notificationObservable -> notificationObservable)
+                .onBackpressureBuffer(100, new Action0() {
+                    @Override
+                    public void call() {
+                        Logger.e("CharacteristicBattery...Data Overflow occurs...after buffer... drop oldest packet");
+                    }
+                }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
+                .map(bytes -> {
                     DataTypeDoubleArray battery = new DataTypeDoubleArray(DateTime.getDateTime(), TranslateBattery.getBattery(bytes));
-                    return new Data(sensors.get(0), battery);
+                    ArrayList<Data> arrayList = new ArrayList<>();
+                    arrayList.add(new Data(sensors.get(0), battery));
+                    return arrayList;
                 });
     }
 }

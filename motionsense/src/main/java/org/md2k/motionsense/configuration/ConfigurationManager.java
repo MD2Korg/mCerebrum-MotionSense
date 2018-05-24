@@ -101,6 +101,9 @@ public class ConfigurationManager {
     public static String[] getPlatformIdFromDefault() {
         return DefaultConfig.getPlatformId();
     }
+    public static boolean isForegroundApp(){
+        return DefaultConfig.isForegroundApp();
+    }
 
     /**
      * Returns whether there is a default configuration.
