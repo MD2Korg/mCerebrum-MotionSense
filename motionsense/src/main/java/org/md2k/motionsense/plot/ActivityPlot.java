@@ -8,6 +8,8 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 
+import com.github.mikephil.charting.components.YAxis;
+
 import org.md2k.datakitapi.datatype.DataType;
 import org.md2k.datakitapi.datatype.DataTypeDouble;
 import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
@@ -15,6 +17,7 @@ import org.md2k.datakitapi.datatype.DataTypeFloat;
 import org.md2k.datakitapi.datatype.DataTypeFloatArray;
 import org.md2k.datakitapi.source.datasource.DataSource;
 import org.md2k.datakitapi.source.datasource.DataSourceType;
+import org.md2k.datakitapi.source.platform.PlatformType;
 import org.md2k.mcerebrum.commons.plot.RealtimeLineChartActivity;
 import org.md2k.motionsense.ServiceMotionSense;
 
@@ -26,6 +29,21 @@ public class ActivityPlot extends RealtimeLineChartActivity {
         super.onCreate(savedInstanceState);
         try {
             dataSource = getIntent().getExtras().getParcelable(DataSource.class.getSimpleName());
+            if(dataSource.getType().equals(DataSourceType.LED) && dataSource.getPlatform().getType().equals(PlatformType.MOTION_SENSE_HRV_PLUS)) {
+                YAxis leftAxis = mChart.getAxisLeft();
+                leftAxis.setAxisMaximum(5);
+                leftAxis.setAxisMinimum(-5);
+            }
+            else if(dataSource.getType().equals(DataSourceType.BATTERY)) {
+                YAxis leftAxis = mChart.getAxisLeft();
+                leftAxis.setAxisMaximum(100);
+                leftAxis.setAxisMinimum(0);
+            }
+            else if(dataSource.getType().equals(DataSourceType.ACCELEROMETER)) {
+                YAxis leftAxis = mChart.getAxisLeft();
+                leftAxis.setAxisMaximum(5);
+                leftAxis.setAxisMinimum(-5);
+            }
         }catch (Exception e){
             finish();
         }
@@ -71,6 +89,7 @@ public class ActivityPlot extends RealtimeLineChartActivity {
         switch (ds) {
             case DataSourceType.LED:
                 legends = new String[]{"LED 1", "LED 2", "LED 3"};
+
                 break;
             case DataSourceType.ACCELEROMETER:
                 legends = new String[]{"Accelerometer X", "Accelerometer Y", "Accelerometer Z"};
@@ -108,7 +127,7 @@ public class ActivityPlot extends RealtimeLineChartActivity {
                 double samples = ((DataTypeDouble) data).getSample();
                 sample = new float[]{(float) samples};
             }
-            addEntry(sample, legends, 600);
+            addEntry(sample, legends, 400);
         }
     }
 

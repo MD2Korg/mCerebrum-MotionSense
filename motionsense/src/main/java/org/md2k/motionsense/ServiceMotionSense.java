@@ -171,7 +171,7 @@ public class ServiceMotionSense extends Service {
                     if (deviceManager != null)
                         deviceManager.disconnect();
                 })
-                .buffer(500, TimeUnit.MILLISECONDS)
+                .buffer(200, TimeUnit.MILLISECONDS)
                 .onBackpressureBuffer(100, new Action0() {
                     @Override
                     public void call() {

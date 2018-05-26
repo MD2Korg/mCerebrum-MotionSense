@@ -402,24 +402,24 @@
         "NAME": "Red",
         "DESCRIPTION": "Value of Red LED",
         "FREQUENCY": "16",
-        "MAX_VALUE": "250",
-        "MIN_VALUE": "-250"
+        "MAX_VALUE": "5",
+        "MIN_VALUE": "-5"
       },
       {
         "DATA_TYPE": "double",
         "NAME": "Infrared",
         "DESCRIPTION": "Value of Infrared LED",
         "FREQUENCY": "16",
-        "MAX_VALUE": "250",
-        "MIN_VALUE": "-250"
+        "MAX_VALUE": "5",
+        "MIN_VALUE": "-5"
       },
       {
         "DATA_TYPE": "double",
         "NAME": "Green",
         "DESCRIPTION": "Value of Green LED",
         "FREQUENCY": "16",
-        "MAX_VALUE": "250",
-        "MIN_VALUE": "-250"
+        "MAX_VALUE": "5",
+        "MIN_VALUE": "-5"
       }
     ],
     "platform": {

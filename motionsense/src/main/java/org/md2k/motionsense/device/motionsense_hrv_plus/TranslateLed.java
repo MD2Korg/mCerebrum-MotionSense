@@ -26,6 +26,8 @@ package org.md2k.motionsense.device.motionsense_hrv_plus;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import android.util.Log;
+
 class TranslateLed {
     static double[] getAccelerometer(byte[] bytes) {
         double[] sample = new double[3];
@@ -46,22 +48,23 @@ class TranslateLed {
     }
 
     static double[] getSequenceNumber(byte[] data) {
-        int y = (data[18] & 0x03);
-        int x = (data[19] & 0xff);
-        int seq = (y << 8) | x;
+        int seq = ((data[18] & 0xff) << 8) | (data[19] & 0xff);
         return new double[]{seq};
     }
 
     static double[] getLED(byte[] bytes) {
         double[] sample = new double[3];
-        sample[0] = ((bytes[12] & 0xff)<<10) | ((bytes[13] & 0xff) <<2) | ((bytes[14] & 0xc0)>>6);
-        sample[1] = ((bytes[14] & 0x3f)<<12) | ((bytes[15] & 0xff) <<4) | ((bytes[16] & 0xf0)>>4);
-        sample[2] = ((bytes[16] & 0x0f)<<14) | ((bytes[17] & 0xff) <<6) | ((bytes[18] & 0xfc)>>2);
+        sample[0] = convertLEDValues((short)((bytes[12] & 0xff) << 8) | (bytes[13] & 0xff));
+        sample[1] = convertLEDValues((short)((bytes[14] & 0xff) << 8) | (bytes[15] & 0xff));
+        sample[2] = convertLEDValues((short)((bytes[16] & 0xff) << 8) | (bytes[17] & 0xff));
         return sample;
     }
 
     private static double convertAccelADCtoSI(double x) {
         return 2.0 * x / 16384;
+    }
+    private static double convertLEDValues(double x) {
+        return (x*300.0)/(32767);
     }
 
     static double[] getRaw(byte[] bytes) {
