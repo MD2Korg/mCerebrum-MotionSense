@@ -1,7 +1,6 @@
-package org.md2k.motionsense;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense;
+
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.util.Log;
@@ -37,10 +38,19 @@ import com.polidea.rxandroidble.RxBleDevice;
 import java.lang.reflect.Method;
 import java.util.Set;
 
+/**
+ * Handles the pairing and unpairing of Bluetooth low energy devices.
+ */
 public class BLEPair {
+    /**
+     * Pairs the given device.
+     * @param context Android context
+     * @param device Bluetooth device
+     */
     public static void pairDevice(Context context, BluetoothDevice device) {
         try {
-            if(isPaired(context, device.getAddress())) return;
+            if(isPaired(context, device.getAddress()))
+                return;
             Method m = device.getClass().getMethod("createBond", (Class[]) null);
             m.invoke(device, (Object[]) null);
         } catch (Exception ignored) {
@@ -48,22 +58,35 @@ public class BLEPair {
         }
     }
 
+    /**
+     * Unpairs the given device.
+     * @param context Android context
+     * @param device Bluetooth device
+     */
     static void unpairDevice(Context context, BluetoothDevice device) {
         try {
-            if(!isPaired(context, device.getAddress())) return;
+            if(!isPaired(context, device.getAddress()))
+                return;
             Method m = device.getClass().getMethod("removeBond", (Class[]) null);
             m.invoke(device, (Object[]) null);
         } catch (Exception ignored) {
             Logger.e("BLEPair unpair device error: e="+ignored.toString(), ignored);
         }
     }
+
+    /**
+     * Returns whether the device is paired or not.
+     * @param context Android context
+     * @param macAddress MAC address of the device
+     * @return Whether the device is paired or not.
+     */
     private static boolean isPaired(Context context, String macAddress){
         RxBleClient rxBleClient = MyApplication.getRxBleClient(context);
         Set<RxBleDevice> rxBleDeviceSet = rxBleClient.getBondedDevices();
         for (RxBleDevice rxBleDevice : rxBleDeviceSet) {
-            if (rxBleDevice.getMacAddress().equals(macAddress)) return true;
+            if (rxBleDevice.getMacAddress().equals(macAddress))
+                return true;
         }
         return false;
     }
-
 }

@@ -44,19 +44,36 @@ import rx.BackpressureOverflow;
 import rx.Observable;
 import rx.functions.Action0;
 
+/**
+ * Defines the accelerometer characteristic of the device.
+ */
 public class CharacteristicAcl extends Characteristic {
     private HashMap<String, Sensor> listSensor;
 
+    /**
+     * Constructor
+     */
     CharacteristicAcl() {
         super("da39c921-1d81-48e2-9c68-d0ae4bbd351f", "CHARACTERISTIC_ACCELEROMETER", 25.0);
         //TODO: fix frequency
     }
+
+    /**
+     * Returns the <code>Observable</code> created in <code>setNotify()</code>.
+     * @param rxBleConnection The BLE connection handle
+     * @param sensors Arraylist of <code>Sensor</code>s
+     * @return The <code>Observable</code> created in <code>setNotify()</code>.
+     */
     @Override
     public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
         prepareList(sensors);
         return setNotify(rxBleConnection);
     }
 
+    /**
+     * Prepares a hashmap of <code>Sensor</code>s and their <code>DataSourceType</code>.
+     * @param sensors List of <code>Sensor</code>s to add.
+     */
     private void prepareList(ArrayList<Sensor> sensors) {
         listSensor = new HashMap<>();
         for (Sensor sensor : sensors) {
@@ -67,6 +84,11 @@ public class CharacteristicAcl extends Characteristic {
         }
     }
 
+    /**
+     * Returns an <code>Observable</code> to create notifications for accelerometer data.
+     * @param rxBleConnection The BLE connection handle.
+     * @return An <code>Observable</code> to create notifications for accelerometer data.
+     */
     private Observable<ArrayList<Data>> setNotify(RxBleConnection rxBleConnection) {
         UUID uuid = UUID.fromString(getId());
         return rxBleConnection.setupNotification(uuid)
@@ -92,12 +114,10 @@ public class CharacteristicAcl extends Characteristic {
                         d = new DataTypeDoubleArray(curTime, TranslateAcl.getGyroscope2(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.GYROSCOPE), d));
                     }
-
                     if (listSensor.containsKey(DataSourceType.SEQUENCE_NUMBER + getName())) {
                         DataType d = new DataTypeDoubleArray(curTime, TranslateAcl.getSequenceNumber(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.SEQUENCE_NUMBER + getName()), d));
                     }
-
                     if (listSensor.containsKey(DataSourceType.RAW + getName())) {
                         DataType d = new DataTypeDoubleArray(curTime, TranslateAcl.getRaw(bytes));
                         data.add(new Data(listSensor.get(DataSourceType.RAW + getName()), d));

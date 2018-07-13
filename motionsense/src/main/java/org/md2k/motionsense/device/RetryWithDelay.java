@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,35 +25,47 @@ package org.md2k.motionsense.device;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device;
+
 import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.functions.Func1;
 
+/**
+ * Provides methods for retrying an <code>Observable</code>.
+ */
 public class RetryWithDelay implements
         Func1<Observable<? extends Throwable>, Observable<?>> {
 
     private final int retryDelayMillis;
 
+    /**
+     * Constructor
+     * @param retryDelayMillis Time between retries in milliseconds.
+     */
     public RetryWithDelay(final int retryDelayMillis) {
         this.retryDelayMillis = retryDelayMillis;
     }
 
+    /**
+     * Tries to register the given <code>Obaservable</code>.
+     * @param attempts <code>Observable</code> to retry.
+     * @return The given <code>Observable</code>.
+     */
     @Override
     public Observable<?> call(Observable<? extends Throwable> attempts) {
         return attempts
                 .flatMap(new Func1<Throwable, Observable<?>>() {
+                    /**
+                     * When this Observable calls onNext, the original Observable will be retried.
+                     * @param throwable
+                     * @return
+                     */
                     @Override
                     public Observable<?> call(Throwable throwable) {
-//                        if (++retryCount < maxRetries) {
-                        // When this Observable calls onNext, the original
-                        // Observable will be retried (i.e. re-subscribed).
                         return Observable.timer(retryDelayMillis,
                                 TimeUnit.MILLISECONDS);
-                        //                      }
-
-                        // Max retries hit. Just pass the error along.
-                        //                      return Observable.error(throwable);
                     }
                 });
     }

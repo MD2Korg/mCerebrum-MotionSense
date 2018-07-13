@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device.data_quality;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense.device.data_quality;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device.data_quality;
+
 import org.md2k.datakitapi.datatype.DataType;
 import org.md2k.datakitapi.datatype.DataTypeDoubleArray;
 import org.md2k.datakitapi.datatype.DataTypeInt;
@@ -39,28 +40,57 @@ import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 
+/**
+ * Provides methods for starting data collection and summarizing said data.
+ */
 public abstract class DataQuality {
     private static final int DELAY = 3000;
     ArrayList<DataTypeDoubleArray> samples;
+
+    /**
+     * Constructor
+     */
     DataQuality(){
-        samples=new ArrayList<>();
+        samples = new ArrayList<>();
     }
+
+    /**
+     * Returns the status.
+     * @return The status.
+     */
     public abstract int getStatus();
+
+    /**
+     * Returns an <code>Observable</code> that receives <code>Data</code> from the <code>Sensor</code>.
+     * @param sensor <code>Sensor</code> to start collecting data from.
+     * @return An <code>Observable</code> that receives <code>Data</code> from the <code>Sensor</code>.
+     */
     public Observable<Data> start(Sensor sensor){
         return Observable.interval(DELAY, DELAY, TimeUnit.MILLISECONDS).map(aLong -> {
             DataTypeInt dataTypeInt = new DataTypeInt(DateTime.getDateTime(), getStatus());
             return new Data(sensor, dataTypeInt);
         });
     }
+
+    /**
+     * Adds the given sample.
+     * @param sample Sample to add.
+     */
     public synchronized void add(DataTypeDoubleArray sample) {
         samples.add(sample);
     }
 
+    /**
+     * Returns the summary.
+     * @param dataTypeInt Data to summarize.
+     * @return The summary.
+     */
     DataType getSummary(DataTypeInt dataTypeInt) {
-            int[] intArray=new int[7];
-            for(int i=0;i<7;i++) intArray[i]=0;
-            int value=dataTypeInt.getSample();
-            intArray[value]=DELAY;
+            int[] intArray = new int[7];
+            for(int i = 0; i < 7; i++)
+                intArray[i] = 0;
+            int value = dataTypeInt.getSample();
+            intArray[value] = DELAY;
             return new DataTypeIntArray(dataTypeInt.getDateTime(), intArray);
     }
 }

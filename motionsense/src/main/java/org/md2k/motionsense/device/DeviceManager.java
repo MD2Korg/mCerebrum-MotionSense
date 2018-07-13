@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense.device;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device;
+
 import android.content.Context;
 
 import com.orhanobut.logger.Logger;
@@ -42,18 +43,33 @@ import java.util.ArrayList;
 import rx.Observable;
 import rx.Subscriber;
 
+/**
+ * Manages lists of <code>Device</code> objects.
+ */
 public class DeviceManager {
     private ArrayList<Device> devices;
 
+    /**
+     * Constructor
+     */
     public DeviceManager() {
         devices = new ArrayList<>();
     }
 
+    /**
+     * Returns an <code>Observable</code> over every <code>Device</code> in the arraylist.
+     * @param context Android context.
+     * @return
+     */
     public Observable<ArrayList<Data>> connect(Context context) {
         Logger.d("DeviceManager: connect()");
         return Observable.create((Subscriber<? super ArrayList<Data>> subscriber) -> {
             for (int i = 0; i < devices.size(); i++)
                 devices.get(i).connect(context, new ReceiveCallback() {
+                    /**
+                     * Passes the received <code>Data</code> to <code>subscriber.onNext()</code>.
+                     * @param t <code>Data</code> received.
+                     */
                     @Override
                     public void onReceive(ArrayList<Data> t) {
                         subscriber.onNext(t);
@@ -62,6 +78,10 @@ public class DeviceManager {
         });
     }
 
+    /**
+     * Adds the given sensor to the arraylist of <code>devices</code>.
+     * @param sensor <code>Sensor</code> to add.
+     */
     public void add(Sensor sensor) {
         Device device = getDevice(sensor.getDeviceId());
         if (device == null) {
@@ -85,12 +105,20 @@ public class DeviceManager {
         device.add(sensor);
     }
 
+    /**
+     * Disconnects all devices.
+     */
     public void disconnect() {
         Logger.d("DeviceManager: disconnect()");
         for (int i = 0; i < devices.size(); i++)
             devices.get(i).disconnect();
     }
 
+    /**
+     * Returns a <code>Device</code> with the given id.
+     * @param id Id to match.
+     * @return A <code>Device</code> with the given id.
+     */
     private Device getDevice(String id) {
         for (int i = 0; i < devices.size(); i++)
             if (devices.get(i).getDeviceId().equals(id))

@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device.motionsense_hrv;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense.device.motionsense_hrv;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device.motionsense_hrv;
+
 import com.orhanobut.logger.Logger;
 import com.polidea.rxandroidble.RxBleConnection;
 
@@ -44,18 +45,34 @@ import rx.BackpressureOverflow;
 import rx.Observable;
 import rx.functions.Action0;
 
+/**
+ * Defines the LED characteristic of the device.
+ */
 public class CharacteristicLed extends Characteristic {
     private HashMap<String, Sensor> listSensor;
 
+    /**
+     * Constructor
+     */
     CharacteristicLed() {
         super("da39c921-1d81-48e2-9c68-d0ae4bbd351f", "CHARACTERISTIC_LED", 16.0);
     }
 
+    /**
+     * Returns the <code>Observable</code> created in <code>setNotify()</code>.
+     * @param rxBleConnection The BLE connection handle
+     * @param sensors Arraylist of <code>Sensor</code>s
+     * @return The <code>Observable</code> created in <code>setNotify()</code>.
+     */
     public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
         prepareList(sensors);
         return setNotify(rxBleConnection);
     }
 
+    /**
+     * Prepares a hashmap of <code>Sensor</code>s and their <code>DataSourceType</code>.
+     * @param sensors List of <code>Sensor</code>s to add.
+     */
     private void prepareList(ArrayList<Sensor> sensors) {
         listSensor = new HashMap<>();
         for (Sensor sensor : sensors) {
@@ -66,6 +83,11 @@ public class CharacteristicLed extends Characteristic {
         }
     }
 
+    /**
+     * Returns an <code>Observable</code> to create notifications for accelerometer data.
+     * @param rxBleConnection The BLE connection handle.
+     * @return An <code>Observable</code> to create notifications for accelerometer data.
+     */
     private Observable<ArrayList<Data>> setNotify(RxBleConnection rxBleConnection) {
         UUID uuid = UUID.fromString(getId());
         return rxBleConnection.setupNotification(uuid)

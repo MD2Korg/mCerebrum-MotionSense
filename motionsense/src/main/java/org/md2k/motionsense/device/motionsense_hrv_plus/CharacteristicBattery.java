@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device.motionsense_hrv_plus;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense.device.motionsense_hrv_plus;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device.motionsense_hrv_plus;
+
 import com.orhanobut.logger.Logger;
 import com.polidea.rxandroidble.RxBleConnection;
 
@@ -42,15 +43,26 @@ import rx.BackpressureOverflow;
 import rx.Observable;
 import rx.functions.Action0;
 
+/**
+ * Defines the battery characteristic of the device.
+ */
 public class CharacteristicBattery extends Characteristic {
 
+    /**
+     * Constructor
+     */
     CharacteristicBattery() {
 //        super("da39adf0-1d81-48e2-9c68-d0ae4bbd351f", "CHARACTERISTIC_BATTERY", 25.0);
         super("00002A19-0000-1000-8000-00805f9b34fb", "CHARACTERISTIC_BATTERY", 25.0);
         //TODO fix frequency
-
     }
 
+    /**
+     * Returns an <code>Observable</code> over the data for this <code>Characteristic</code>.
+     * @param rxBleConnection The BLE connection handle
+     * @param sensors Arraylist of <code>Sensor</code>s
+     * @return An <code>Observable</code> over the data for this <code>Characteristic</code>.
+     */
     @Override
     public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors) {
         UUID uuid = UUID.fromString(getId());

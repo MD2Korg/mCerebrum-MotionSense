@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,8 +25,13 @@ package org.md2k.motionsense.device;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device;
+
 import org.md2k.datakitapi.source.datasource.DataSourceClient;
 
+/**
+ * Creates a <code>Sensor</code> object.
+ */
 public class Sensor {
     private DataSourceClient dataSourceClient;
     private String deviceType;
@@ -36,8 +40,18 @@ public class Sensor {
     private String dataSourceType;
     private String dataSourceId;
 
-    public Sensor(DataSourceClient dataSourceClient, String deviceType, String deviceId, String characteristicName, String dataSourceType, String dataSourceId) {
-        this.deviceId=deviceId;
+    /**
+     * Constructor
+     * @param dataSourceClient <code>DataSourceClient</code> for this <code>Sensor</code>.
+     * @param deviceType Type of device this <code>Sensor</code> is on.
+     * @param deviceId Id of the device this <code>Sensor</code> is on.
+     * @param characteristicName Name of the <code>Characteristic</code> for this <code>Sensor</code>.
+     * @param dataSourceType Type of <code>DataSource</code> this <code>Sensor</code> produces.
+     * @param dataSourceId Id of the <code>DataSource</code> this <code>Sensor</code> produces.
+     */
+    public Sensor(DataSourceClient dataSourceClient, String deviceType, String deviceId,
+                  String characteristicName, String dataSourceType, String dataSourceId) {
+        this.deviceId = deviceId;
         this.dataSourceClient = dataSourceClient;
         this.deviceType = deviceType;
         this.characteristicName = characteristicName;
@@ -45,26 +59,50 @@ public class Sensor {
         this.dataSourceId = dataSourceId;
     }
 
+    /**
+     * Returns the <code>DataSourceClient</code>.
+     * @return The <code>DataSourceClient</code>.
+     */
     public DataSourceClient getDataSourceClient() {
         return dataSourceClient;
     }
 
+    /**
+     * Returns the type of the device.
+     * @return The type of the device.
+     */
     public String getDeviceType() {
         return deviceType;
     }
 
+    /**
+     * Returns the name of the <code>Characteristic</code>.
+     * @return The name of the <code>Characteristic</code>.
+     */
     public String getCharacteristicName() {
         return characteristicName;
     }
 
+    /**
+     * Returns the <code>DataSource</code> type.
+     * @return The <code>DataSource</code> type.
+     */
     public String getDataSourceType() {
         return dataSourceType;
     }
 
+    /**
+     * Returns the <code>DataSource</code> id.
+     * @return The <code>DataSource</code> id.
+     */
     public String getDataSourceId() {
         return dataSourceId;
     }
 
+    /**
+     * Returns the device id.
+     * @return The device id.
+     */
     public String getDeviceId() {
         return deviceId;
     }

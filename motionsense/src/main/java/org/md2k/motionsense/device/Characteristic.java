@@ -1,7 +1,6 @@
-package org.md2k.motionsense.device;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense.device;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense.device;
+
 import com.polidea.rxandroidble.RxBleConnection;
 
 import org.md2k.datakitapi.time.DateTime;
@@ -35,6 +36,9 @@ import java.util.ArrayList;
 
 import rx.Observable;
 
+/**
+ * Base class for defining sensor characteristics.
+ */
 public abstract class Characteristic {
     protected long lastTimestamp;
     protected int lastSequence;
@@ -42,31 +46,63 @@ public abstract class Characteristic {
     protected double frequency;
     private String name;
 
+    /**
+     * Constructor
+     * @param id Characteristic id.
+     * @param name Name of the characteristic.
+     * @param frequency Sampling frequency.
+     */
     public Characteristic(String id, String name, double frequency) {
         this.id = id;
         this.frequency = frequency;
-        this.name=name;
+        this.name = name;
     }
 
+    /**
+     * Returns the frequency.
+     * @return The frequency.
+     */
     public double getFrequency() {
         return frequency;
     }
 
+    /**
+     * Returns the name.
+     * @return The name.
+     */
     public String getName() {
         return name;
     }
 
+
+    /**
+     * Returns an <code>Observable</code> over the data for this <code>Characteristic</code>.
+     * @param rxBleConnection The BLE connection handle
+     * @param sensors Arraylist of <code>Sensor</code>s
+     * @return An <code>Observable</code> over the data for this <code>Characteristic</code>.
+     */
     abstract public Observable<ArrayList<Data>> getObservable(RxBleConnection rxBleConnection, ArrayList<Sensor> sensors);
 
+
+    /**
+     * Returns the id.
+     * @return The id.
+     */
     public String getId() {
         return id;
     }
 
+    /**
+     * Returns the correct timestamp.
+     * @param curSequence
+     * @param maxLimit
+     * @return The correct timestamp.
+     */
     protected long correctTimeStamp(int curSequence, int maxLimit) {
         long time;
         long curTime = DateTime.getDateTime();
         int diff = (curSequence - lastSequence + maxLimit) % maxLimit;
-        time = (long) (lastTimestamp + (1000.0*diff)/frequency);
+        time = (long) (lastTimestamp + (1000.0 * diff) / frequency);
         if (curTime < time || curTime - time > 5000)
             time = curTime;
         return time;

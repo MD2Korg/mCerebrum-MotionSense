@@ -1,7 +1,6 @@
-package org.md2k.motionsense;
 /*
- * Copyright (c) 2016, The University of Memphis, MD2K Center
- * - Syed Monowar Hossain <monowar.hossain@gmail.com>
+ * Copyright (c) 2018, The University of Memphis, MD2K Center of Excellence
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +25,8 @@ package org.md2k.motionsense;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package org.md2k.motionsense;
+
 import android.app.Application;
 import android.content.Context;
 import android.util.Log;
@@ -36,25 +37,37 @@ import com.polidea.rxandroidble.internal.RxBleLog;
 import org.md2k.mcerebrum.commons.debug.MyLogger;
 import org.md2k.mcerebrum.core.access.MCerebrum;
 
+/**
+ * This class connects this application to the <code>MCerebrum</code> core library.
+ */
 public class MyApplication extends Application {
     private RxBleClient rxBleClient;
 
+    /**
+     * Creates the activity, an <code>RxBleClient</code>, and calls on the <code>MCerebrum</code>
+     * library for initialization.
+     */
     @Override
     public void onCreate() {
         super.onCreate();
         Log.d("abc","MyApplication.. onCreate()");
         rxBleClient = RxBleClient.create(this);
-//        RxBleClient.setLogLevel(RxBleLog.);
         MCerebrum.init(getApplicationContext(), MyMCerebrumInit.class);
-        Log.d("abc","rxBleClient: state="+rxBleClient.getState().toString());
-        Log.d("abc","rxBleClient: bondedDevices size="+rxBleClient.getBondedDevices().size());
+        Log.d("abc","rxBleClient: state=" + rxBleClient.getState().toString());
+        Log.d("abc","rxBleClient: bondedDevices size=" + rxBleClient.getBondedDevices().size());
         MyLogger.setLogger(getApplicationContext());
+
     }
 
+    /**
+     * Returns the <code>RxBleClient</code> for this application.
+     * @param context Android context
+     * @return The <code>RxBleClient</code> for this application.
+     */
     public static RxBleClient getRxBleClient(Context context) {
         MyApplication application = (MyApplication) context.getApplicationContext();
-        Log.d("abc","rxBleClient: state="+application.rxBleClient.getState().toString());
-        Log.d("abc","rxBleClient: bondedDevices size="+application.rxBleClient.getBondedDevices().size());
+        Log.d("abc","rxBleClient: state=" + application.rxBleClient.getState().toString());
+        Log.d("abc","rxBleClient: bondedDevices size=" + application.rxBleClient.getBondedDevices().size());
         return application.rxBleClient;
     }
 }

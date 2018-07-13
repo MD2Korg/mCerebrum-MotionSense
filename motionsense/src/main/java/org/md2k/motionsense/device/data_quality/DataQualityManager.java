@@ -40,15 +40,25 @@ import java.util.Map;
 import rx.Observable;
 import rx.functions.Func1;
 
+/**
+ * Manages a hashmap for <code>DataQuality</code> objects and a hashmap for <code>Sensor</code> objects.
+ */
 public class DataQualityManager {
     private HashMap<String, DataQuality> dataQualityHashMap;
     private HashMap<String, Sensor> sensorHashMap;
 
+    /**
+     * Constructor
+     */
     public DataQualityManager() {
         dataQualityHashMap = new HashMap<>();
         sensorHashMap = new HashMap<>();
     }
 
+    /**
+     * Returns the <code>Observable</code>s for the <code>DataQualityManager</code>.
+     * @return The <code>Observable</code>s for the <code>DataQualityManager</code>.
+     */
     public Observable<ArrayList<Data>> getObservable() {
         ArrayList<Observable<Data>> observables = new ArrayList<>();
         for (Map.Entry<String, DataQuality> entry : dataQualityHashMap.entrySet()) {
@@ -65,22 +75,37 @@ public class DataQualityManager {
         });
     }
 
+    /**
+     * Adds the given <code>Sensor</code> to the <code>sensorHashMap</code>.
+     * @param sensor <code>Sensor</code> to add.
+     */
     public void addSensor(Sensor sensor) {
-        if (!isValidSensor(sensor)) return;
+        if (!isValidSensor(sensor))
+            return;
         String name = sensor.getDeviceType() + sensor.getDeviceId() + sensor.getDataSourceId();
-
         if (!dataQualityHashMap.containsKey(name)) {
             dataQualityHashMap.put(name, getDataQuality(sensor));
             sensorHashMap.put(name, sensor);
         }
     }
 
+    /**
+     * Adds the given <code>Data</code> to the <code>dataQualityHashMap</code>.
+     * @param data <code>Data</code> to add.
+     */
     public void addData(Data data) {
-        String name = data.getSensor().getDeviceType() + data.getSensor().getDeviceId() + data.getSensor().getDataSourceType();
-        if (!dataQualityHashMap.containsKey(name)) return;
+        String name = data.getSensor().getDeviceType() + data.getSensor().getDeviceId() +
+                data.getSensor().getDataSourceType();
+        if (!dataQualityHashMap.containsKey(name))
+            return;
         dataQualityHashMap.get(name).add((DataTypeDoubleArray) data.getDataType());
     }
 
+    /**
+     * Returns the appropriate <code>DataQuality</code> object for the given <code>Sensor</code>.
+     * @param sensor <code>Sensor</code> to get the <code>DataQuality</code> for.
+     * @return The appropriate <code>DataQuality</code> object for the given <code>Sensor</code>.
+     */
     private DataQuality getDataQuality(Sensor sensor) {
         switch (sensor.getDataSourceId()) {
             case DataSourceType.ACCELEROMETER:
@@ -92,18 +117,33 @@ public class DataQualityManager {
         }
     }
 
+    /**
+     * Returns whether the given <code>Sensor</code> is valid.
+     * @param sensor <code>Sensor</code> to validate.
+     * @return Whether the given <code>Sensor</code> is valid.
+     */
     private boolean isValidSensor(Sensor sensor) {
-        if (sensor.getDataSourceId() == null || sensor.getDataSourceType() == null || sensor.getDeviceType() == null || sensor.getDeviceId() == null)
+        if (sensor.getDataSourceId() == null || sensor.getDataSourceType() == null ||
+                sensor.getDeviceType() == null || sensor.getDeviceId() == null)
             return false;
-        if (!sensor.getDataSourceType().equals(DataSourceType.DATA_QUALITY)) return false;
-        return !(!sensor.getDataSourceId().equals(DataSourceType.ACCELEROMETER) && !sensor.getDataSourceId().equals(DataSourceType.LED));
+        if (!sensor.getDataSourceType().equals(DataSourceType.DATA_QUALITY))
+            return false;
+        return !(!sensor.getDataSourceId().equals(DataSourceType.ACCELEROMETER) &&
+                !sensor.getDataSourceId().equals(DataSourceType.LED));
     }
 
+    /**
+     * Returns a summary of the given data.
+     * @param data Data to process.
+     * @return A summary of the given data.
+     */
     public DataType getSummary(Data data) {
-        if (!isValidSensor(data.getSensor())) return null;
-        String name = data.getSensor().getDeviceType() + data.getSensor().getDeviceId() + data.getSensor().getDataSourceId();
-
-        if (!dataQualityHashMap.containsKey(name)) return null;
+        if (!isValidSensor(data.getSensor()))
+            return null;
+        String name = data.getSensor().getDeviceType() + data.getSensor().getDeviceId() +
+                data.getSensor().getDataSourceId();
+        if (!dataQualityHashMap.containsKey(name))
+            return null;
         return dataQualityHashMap.get(name).getSummary((DataTypeInt) data.getDataType());
 
     }
